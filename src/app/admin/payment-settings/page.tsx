@@ -49,7 +49,7 @@ export default async function PaymentSettingsPage() {
       <PageHeader
         eyebrow="Payments"
         title="Payment settings"
-        description="ตั้งค่า PromptPay ID, ยอดเติมขั้นต่ำ และการตรวจสอบสลิปอัตโนมัติ (SlipOK) ทั้งหมดอยู่ในหน้านี้"
+        description="ตั้งค่า PromptPay ID, ยอดเติมขั้นต่ำ และการตรวจสอบสลิปอัตโนมัติ (SlipOK / EasySlip) ทั้งหมดอยู่ในหน้านี้"
         actions={
           <Link href="/admin/payment-providers" className="text-xs font-semibold text-primary hover:underline">
             จัดการผู้ให้บริการชำระเงิน →
