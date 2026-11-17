@@ -8,6 +8,7 @@ import { getSlipConfig, verifySlipImage } from "@/lib/slip-verification";
 import { readUploadBytes } from "@/lib/uploads";
 import { decodeSlipQr } from "@/lib/slip-qr";
 import { parseSlipPayload, slipReference } from "@/lib/slip-payload";
+import { findBankCreditForPayment } from "@/lib/bank/reconcile";
 import type { SlipOutcome } from "@/lib/slipok";
 import { toMinor, toNumericString } from "@/lib/money";
 import { newPaymentReference } from "@/lib/payments/promptpay";
@@ -453,55 +454,35 @@ export async function attachSlip(input: {
       : "Slip uploaded. Staff must verify it manually before crediting.";
 
   const config = await getSlipConfig();
-  const runtimeSettings = await getSettings();
-  const selfAutoCredit =
-    env.nodeEnv !== "production" && runtimeSettings["slip.self_auto_credit"] === true;
   if (!config.enabled) {
-    if (
-      selfAutoCredit &&
-      selfCheck?.status === "parsed" &&
-      payment.purpose === "wallet_deposit" &&
-      Number(payment.amount) <= 1
-    ) {
-      try {
-        await settlePayment({
-          paymentId: payment.id,
-          source: "self_test",
-          amountMinor: toMinor(payment.amount),
-          note: "DEMO self-QR auto-credit (not bank-verified)",
-        });
-        await one(
-          "update payments set slip_verification = $2::jsonb, updated_at = now() where id = $1 returning id",
-          [
-            payment.id,
-            JSON.stringify({
-              self: {
-                ...(selfCheck ?? {}),
-                testAutoCredit: true,
-                credited: true,
-                checkedAt: new Date().toISOString(),
-              },
-            }),
-          ],
-        );
-        return {
-          ok: true,
-          verified: false,
-          credited: true,
-          testCredit: true,
-          parsed: true,
-          parsedReference,
-          parsedBank,
-          message:
-            "DEMO test mode: ?1 was credited automatically from a structural QR pre-check. This is not a bank confirmation.",
-        };
-      } catch (error) {
-        console.error("[slip] demo auto-credit failed", error);
-        return {
-          ok: false,
-          error: "The test auto-credit could not be applied. The slip remains under manual review.",
-        };
-      }
+    // Real verification: only credit when the merchant's own bank statement has
+    // an incoming credit that matches this payment. An image alone proves nothing.
+    const bankMatch = await findBankCreditForPayment(payment.id);
+    if (bankMatch.matched) {
+      await one(
+        "update payments set slip_verification = $2::jsonb, updated_at = now() where id = $1 returning id",
+        [
+          payment.id,
+          JSON.stringify({
+            self: selfCheck,
+            bank: {
+              matched: true,
+              method: bankMatch.method ?? null,
+              amount: bankMatch.amount ?? payment.amount,
+              checkedAt: new Date().toISOString(),
+            },
+          }),
+        ],
+      );
+      return {
+        ok: true,
+        verified: true,
+        credited: true,
+        parsed: selfCheck?.status === "parsed",
+        parsedReference,
+        parsedBank,
+        message: `Incoming bank credit of ${Number(bankMatch.amount ?? payment.amount).toFixed(2)} THB was found and the wallet was credited.`,
+      };
     }
     await notifySlipReviewers(
       payment,
@@ -515,7 +496,7 @@ export async function attachSlip(input: {
       parsed: selfCheck?.status === "parsed",
       parsedReference,
       parsedBank,
-      message: parsedMessage,
+      message: `${parsedMessage} No matching incoming bank credit was found yet - import the bank statement to verify it.`,
     };
   }
 

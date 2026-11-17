@@ -158,7 +158,6 @@ export async function saveSlipSettingsAction(_prev: AdminResult, formData: FormD
     const user = await guard(PERMISSIONS.settingsManage);
     const enabled = formData.get("slipEnabled") === "on";
     const autoApprove = formData.get("autoApprove") === "on";
-    const selfAutoCredit = formData.get("selfAutoCredit") === "on";
     const branchId = s(formData, "branchId").slice(0, 60);
     const apiKey = s(formData, "apiKey");
     const existing = await getSettings();
@@ -172,7 +171,6 @@ export async function saveSlipSettingsAction(_prev: AdminResult, formData: FormD
       {
         "slip.enabled": enabled,
         "slip.auto_approve": autoApprove,
-        "slip.self_auto_credit": selfAutoCredit,
         "slip.slipok_branch_id": branchId,
         "slip.slipok_api_key": encryptedKey,
         "slip.provider": "slipok",
@@ -185,7 +183,7 @@ export async function saveSlipSettingsAction(_prev: AdminResult, formData: FormD
       action: "settings.slip_verification_update",
       entityType: "system_settings",
       entityId: "slip",
-      after: { enabled, autoApprove, selfAutoCredit, branchId, keyRotated: Boolean(apiKey) },
+      after: { enabled, autoApprove, branchId, keyRotated: Boolean(apiKey) },
     });
     revalidatePath("/admin/payment-settings");
     revalidatePath("/admin/payments");

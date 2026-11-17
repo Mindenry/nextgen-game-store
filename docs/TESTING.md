@@ -29,10 +29,11 @@ other scripts that open `.data/pglite` while the dev server is running.
 | `crypto.test.ts` | AES-256-GCM round-trip, tamper detection, scrypt hashing/verification, constant-time HMAC compare |
 | `rbac.test.ts` | customer denial, granted permissions, null-user safety |
 | `slipok.test.ts` | SlipOK success mapping, duplicate slip, amount mismatch, wrong receiver, bank delay, auth failure |
+| `bank-statement.test.ts` | Thai/English CSV headers, Buddhist year, quoted commas, thousands separators, debit columns, stable fingerprints, unreadable files |
 | `slip-payload.test.ts` | standard bank slip Mini QR, TrueMoney slip, CRC tamper, non-slip payload, duplicate CRC |
 | `slip-qr.test.ts` | server-side QR decoding from PNG for standard and TrueMoney slips |
 
-Results (this machine): **8 files, 34 tests passing**.
+Results (this machine): **9 files, 41 tests passing**.
 
 ## E2E tests (Playwright)
 
@@ -44,12 +45,13 @@ Results (this machine): **8 files, 34 tests passing**.
 | `topup.spec.ts` | dynamic top-up field validation, wallet top-up order, staff completion in the fulfilment queue, customer vault/order status |
 | `admin.spec.ts` | all 23 admin modules render without an error boundary, order-detail navigation |
 | `payment-settings.spec.ts` | dedicated PromptPay/SlipOK page renders, minimum deposit is ฿1, ฿1 test product is purchasable |
+| `bank-reconciliation.spec.ts` | statement import verifies a payment and credits once, duplicate import never double-credits, ambiguous amounts wait for a human, a slip alone never credits |
 | `truemoney.spec.ts` | TrueMoney Angpao provider selection, voucher link submission, encrypted voucher review, staff approval, wallet credit |
 
 The webhook test computes a real HMAC-SHA256 over the raw JSON body using the secret configured
 through the admin UI, so it exercises the production route end-to-end.
 
-Recorded result for this build: **16 E2E tests passing** (Chrome channel), plus a production
+Recorded result for this build: **19 E2E tests passing** (Chrome channel), plus a production
 `next start` smoke check of `/`, `/products`, product detail, `/topup`, `/login`, `/api/health`
 and `/robots.txt` (all HTTP 200). Admin client navigation, theme toggle and account menu were
 verified in the production build.

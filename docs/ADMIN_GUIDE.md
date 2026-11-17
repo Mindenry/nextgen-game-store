@@ -68,29 +68,31 @@ and every action is re-checked on the server.
 - Automatic redemption is intentionally not implemented: TrueMoney has no public unauthenticated
   voucher API, and automating it with OTP/session access would breach the service terms.
 
-### DEMO auto-credit (test only)
+### Bank reconciliation (the real verification step)
 
-Payment Settings has an opt-in **โหมดทดลอง (DEMO)** switch. When enabled in a non-production build,
-a wallet top-up of **≤ ฿1** whose slip Mini QR passes the structural check is credited immediately, so
-you can test the full "transfer → slip → balance" flow. Those payments are stored with
-`verification_source = 'self_test'`, appear as "Test credit applied" and carry a clear warning that
-no bank confirmation happened. It is disabled automatically in production and should stay off for
-real sales.
+A slip image cannot be verified for free, so crediting is driven by **your bank account**:
 
-### 1 THB test product
+1. Export the account statement as CSV from your banking app.
+2. Open **Admin → Bank Reconciliation**, choose the bank and import the file.
+3. The system stores the incoming credits and matches them to open payments:
+   - exact payment reference (`NG…`) inside the transfer description wins;
+   - otherwise it matches only when exactly one open payment has the same amount inside the window
+     (default 24 hours);
+   - several same-amount payments → nothing is guessed, the credit waits under
+     **Unmatched incoming credits** for you to pick the right payment.
+4. Once matched, the wallet is credited once, the bank row is linked to the payment and the action is
+   written to the audit log.
 
-`npm run db:test-product` creates/refreshes **TEST ITEM — 1 THB Automatic Delivery** with ten
-encrypted test inventory units and sets the minimum deposit to ฿1. It is for testing only; remove
-or deactivate it before launch. Direct URL: `/products/test-digital-delivery-1-thb`.
+When a customer uploads a slip, the same check runs immediately: if the matching incoming credit is
+already imported, the wallet is credited; otherwise the payment stays in `MANUAL_REVIEW` and the
+payment page tells the customer that no bank credit was found yet.
 
-Recommended test flow:
+Practical rules:
 
-1. Payment Settings → enter your PromptPay ID (mobile or national ID) and keep minimum ฿1.
-2. Add SlipOK Branch ID/API key if you have them (otherwise skip and test manual review).
-3. Customer account → Wallet → Top up ฿1 → scan → transfer ฿1.
-4. Upload the slip. With SlipOK + auto-approve the balance updates automatically; otherwise open
-   Admin → Payments → approve after checking the bank statement.
-5. Buy the ฿1 test product and confirm delivery in My Products.
+- Amounts must match to the satang. Wrong-amount transfers stay unmatched (link manually or refund).
+- Ask customers to include the `NG…` reference in the transfer memo for exact matching.
+- Re-importing the same statement never credits twice (deduplicated by bank reference).
+- Change the auto-match switch or the time window at the bottom of the import card.
 
 ## Wallets
 

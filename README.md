@@ -46,6 +46,20 @@ before going live.
 > **Embedded database note:** PGlite is a single-process database. Stop the dev server before
 > running `db:migrate` or `db:seed-demo`.
 
+## How payments are actually verified (free)
+
+A slip image can be forged, and no Thai bank gives out a free API to confirm one. This build is
+honest about that:
+
+1. The customer transfers to your PromptPay ID and uploads the slip.
+2. The server decodes the slip Mini QR (structure + CRC + bank reference) as a **pre-check**.
+3. **Money is credited only from your own bank data.** Import the account statement CSV in
+   **Admin → Bank Reconciliation**; the system matches incoming credits to open payments (exact
+   `NG…` reference in the memo, otherwise unique amount inside a time window) and credits once.
+4. SlipOK/KBank can replace or complement step 3 if you have credentials.
+
+A slip that was not actually paid into your account stays in `MANUAL_REVIEW` and is never credited.
+
 ## Production (summary)
 
 1. Create a Supabase project and run `supabase/migrations/*.sql` (or `npm run db:migrate` with
@@ -71,9 +85,11 @@ Full steps: [`docs/INSTALLATION.md`](docs/INSTALLATION.md) ·
 - **Wallet** — auditable double-entry-style ledger, idempotent deposits, refunds, admin
   adjustments, non-negative balances, reconciliation view.
 - **Payments** — EMVCo PromptPay QR, signed webhook verification, replay/duplicate/amount checks,
-  manual slip review with private evidence, **free self-hosted slip Mini-QR parser**, **SlipOK
-  bank-side verification**, duplicate-slip/reference protection, **TrueMoney Angpao (manual
-  redemption to the shop phone)**, provider management, webhook log, expiry job.
+  manual slip review with private evidence, **free self-hosted slip Mini-QR parser**, **bank statement
+  reconciliation (CSV import → auto-match by reference/amount/time → wallet credited only when the
+  money really arrived)**, **SlipOK bank-side verification**, duplicate-slip/reference protection,
+  **TrueMoney Angpao (manual redemption to the shop phone)**, provider management, webhook log,
+  expiry job.
 - **Delivery** — AES-256-GCM encrypted inventory, atomic allocation, manual delivery payloads,
   customer vault, notifications and audit logs.
 - **Game top-up** — admin-defined games, field schemas and packages; dynamic customer form;

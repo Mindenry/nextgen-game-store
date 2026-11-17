@@ -63,11 +63,6 @@ export default async function PayPage({
     (provider?.kind === "webhook" || provider?.kind === "promptpay" || provider?.kind === "bank") &&
     Boolean(env.webhookSecret || provider?.secret_encrypted);
   const testCredit = payment.verification_source === "self_test";
-  const demoAutoCredit =
-    payment.purpose === "wallet_deposit" &&
-    Number(payment.amount) <= 1 &&
-    env.nodeEnv !== "production" &&
-    settings["slip.self_auto_credit"] === true;
   const pending = ["PENDING", "VERIFYING", "MANUAL_REVIEW"].includes(status);
   const failed = ["EXPIRED", "REJECTED", "FAILED", "REFUNDED"].includes(status);
 
@@ -257,9 +252,7 @@ export default async function PayPage({
                       <div className="flex gap-2">
                         <Info className="mt-0.5 size-3.5 shrink-0" />
                         <p>
-                          {demoAutoCredit
-                            ? "DEMO/test mode: wallet top-ups up to ฿1 are credited automatically when the slip Mini QR passes the structural check. This is not a bank confirmation — real amounts still need SlipOK/KBank or manual review."
-                            : "Automatic webhook verification is not connected for this provider. Upload your payment slip and staff will verify it before any funds are credited. The status will never show as paid without confirmation."}
+                          "Upload your payment slip, and the system checks it against the bank statement imported by the shop. Nothing is credited until an incoming transfer is actually found."
                         </p>
                       </div>
                     </Alert>
@@ -311,13 +304,9 @@ export default async function PayPage({
                       <SlipUploader reference={payment.reference} locale={locale} />
                     </div>
                     <p className="mt-2 text-[10px] leading-relaxed text-muted">
-                      {demoAutoCredit
-                        ? th
-                          ? "โหมดทดลอง: สลิปที่ QR ผ่านการตรวจโครงสร้างจะเติมเงินทันทีเฉพาะยอดไม่เกิน 1 บาท ส่วนยอดจริงแอดมินจะตรวจกับรายการเดินบัญชี"
-                          : "DEMO mode: a slip with a structurally valid Mini QR is credited instantly for amounts up to ฿1. Real amounts are reviewed by finance staff against the bank statement."
-                        : th
-                          ? "การแนบสลิปไม่ได้เติมเงินอัตโนมัติ เจ้าหน้าที่จะตรวจยอด บัญชีผู้รับ และเลขอ้างอิงกับรายการเดินบัญชี"
-                          : "Uploading a slip does not credit your wallet automatically. Finance staff verify the amount, account and reference against the bank statement."}
+                      {th
+                        ? "ระบบจะเครดิตเงินเมื่อตรวจพบเงินเข้าจริงใน statement ธนาคารของร้าน (ยอดตรง + เวลาตรงกัน) หากยังไม่พบ ระบบจะเก็บสลิปไว้ให้เจ้าหน้าที่ตรวจ"
+                        : "Your wallet is credited only when the shop's imported bank statement contains a matching incoming transfer (same amount, near the same time). Until then the slip stays with staff for review."}
                     </p>
                   </>
                 )}

@@ -206,13 +206,13 @@ export default async function PaymentSettingsPage() {
                   <input type="checkbox" name="autoApprove" defaultChecked={slipConfig.autoApprove} className="mt-0.5 accent-[var(--primary)]" />
                   <span>เติมเงินอัตโนมัติเมื่อ SlipOK ยืนยันสำเร็จ (ยอดตรง + บัญชีผู้รับถูกต้อง + สลิปไม่ซ้ำ)</span>
                 </label>
-                <label className="mt-3 flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/8 p-3 text-[11px] text-fg-soft">
-                  <input type="checkbox" name="selfAutoCredit" defaultChecked={Boolean(settings["slip.self_auto_credit"])} className="mt-0.5 accent-[var(--warning)]" />
-                  <span>
-                    <strong className="text-warning">โหมดทดลอง (DEMO):</strong> เติมอัตโนมัติเมื่อ QR สลิปผ่านโครงสร้าง เฉพาะยอด ≤ 1 บาท
-                    — ไม่ได้ยืนยันกับธนาคาร และปิดใช้งานเมื่อ NODE_ENV=production
-                  </span>
-                </label>
+                <div className="mt-3 rounded-xl border border-primary/25 bg-primary/5 p-3 text-[11px] leading-relaxed text-fg-soft">
+                  <strong className="text-primary">ตรวจเงินเข้าจริง (แนะนำ):</strong> สลิปอย่างเดียวไม่สามารถยืนยันได้ฟรี —
+                  ระบบจะเครดิตก็ต่อเมื่อมีรายการเงินเข้าจริงใน statement ธนาคารของร้าน
+                  <Link href="/admin/bank-reconciliation" className="ml-1 font-semibold text-primary hover:underline">
+                    ไปที่ Bank Reconciliation →
+                  </Link>
+                </div>
               </AdminActionForm>
             </div>
           </Card>

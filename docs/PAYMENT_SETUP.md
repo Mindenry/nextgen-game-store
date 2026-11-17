@@ -164,9 +164,9 @@ and extracts the sending bank + transaction reference. It then:
 
 It deliberately does **not** auto-credit. The Mini QR contains only the bank and transaction
 reference — it does not contain a bank-verified amount or receiver. A fabricated QR can pass the
-structure check, so staff must confirm the reference with the bank statement (or use SlipOK/KBank
-for real confirmation). This is the same "pre-check before bank API" purpose documented by
-`promptparse-jvm`.
+structure check, so credit is only given when section 3.2.2 finds the incoming credit in your own
+bank statement (or when SlipOK/KBank confirms it). This mirrors the "pre-check before bank API"
+purpose documented by `promptparse-jvm`.
 
 Algorithm references and attribution are in the root `NOTICE` file.
 
@@ -189,22 +189,45 @@ attach, the message under the picker explains why:
 Rules enforced by the server: JPG/PNG/WebP only, ≤ 5 MB, magic-byte check, SHA-256 image hash unique,
 bank transaction reference unique, and payment status must be PENDING/VERIFYING/MANUAL_REVIEW/EXPIRED.
 
-### 3.2.2 DEMO auto-credit (≤ ฿1, never in production)
+### 3.2.2 Bank reconciliation (real verification, free)
 
-For end-to-end testing of the "transfer → attach slip → balance credited" flow without a paid
-verification provider, there is an opt-in demo mode. It is off unless **all** of the following hold:
+No Thai bank offers a free API that confirms a slip image, so a slip alone can never prove that money
+arrived. The store therefore verifies payments against **your own bank statement**:
 
-- `NODE_ENV !== "production"`,
-- Admin → Payment Settings → **โหมดทดลอง (DEMO)** checkbox is enabled
-  (`slip.self_auto_credit = true`),
-- the payment is a `wallet_deposit`,
-- the amount is **≤ ฿1**,
-- the slip Mini QR passed the structural check and its transfer reference is new.
+1. Export the account statement from your banking app as CSV (KBank, SCB, BBL, KTB, GSB, TTB, or any
+   CSV with date + amount + description columns).
+2. **Admin → Bank Reconciliation → Import bank statement** (choose the bank, attach the CSV).
+3. The import parses the file on your server, stores every incoming credit (and debits), then matches
+   credits to open payments:
+   - a credit whose description contains the payment reference `NG…` matches that exact payment;
+   - otherwise a credit matches only when **exactly one** open payment has the same amount inside the
+     configured window (default ±24 h);
+   - if several payments share the amount, **nothing is guessed** — the credit stays in
+     *Unmatched incoming credits* for staff to link manually.
+4. A match settles the payment with `verification_source = 'reconcile'` and credits the wallet exactly
+   once. The bank row is linked to the payment (one bank credit can settle at most one payment, enforced
+   by a unique index), and the audit log records the import and every manual match.
 
-When it triggers, the payment is settled with `verification_source = 'self_test'`, the wallet ledger
-says `TEST auto-credit …`, and the payment page shows a red/warning "Test credit applied — NOT a bank
-confirmation" notice. The setting is ignored in production builds, so real money is never credited
-from an unverified image. Keep it off for real sales.
+Matching is also attempted when a customer uploads a slip: if your statement already contains a
+matching incoming credit, the wallet is credited immediately; if not, the slip stays in
+`MANUAL_REVIEW` and the payment page says so. **A slip image by itself never credits money.**
+
+Settings on the same page:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| Auto-match | on | Match automatically only when unambiguous |
+| Match window (minutes) | 1440 | How far a bank credit may be from the payment creation time |
+
+Operational tips:
+
+- Export the statement **after** the transfer settles; Thai banks usually post PromptPay credits
+  within seconds.
+- Ask customers to put the `NG…` reference in the transfer memo when their bank allows it — this makes
+  matching exact even when many people pay the same amount.
+- Amounts must match exactly (satang included). A customer who types 20.00 instead of 20.50 will not be
+  auto-matched; the credit appears as unmatched and can be linked manually or refunded.
+- Duplicate imports are safe: rows are de-duplicated by bank reference (or a fingerprint of the row).
 
 ## 3.3 TrueMoney Angpao (manual, phone 0812345678)
 
