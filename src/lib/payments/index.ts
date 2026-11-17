@@ -4,6 +4,8 @@ import { many, one, withTransaction } from "@/lib/db";
 import { decryptSecret, hmacSha256, safeEqualHex } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { getEnabledProvider, getPromptPayConfig, getSettings } from "@/lib/settings";
+import { getSlipConfig, verifySlipImage } from "@/lib/slip-verification";
+import type { SlipOutcome } from "@/lib/slipok";
 import { toMinor, toNumericString } from "@/lib/money";
 import { newPaymentReference } from "@/lib/payments/promptpay";
 import { applyWalletEntry } from "@/lib/wallet";
@@ -60,6 +62,8 @@ export type PaymentRow = {
   provider_ref: string | null;
   verification_source: string | null;
   evidence_url: string | null;
+  slip_hash: string | null;
+  slip_verification: Record<string, unknown> | null;
   expires_at: string;
   paid_at: string | null;
   metadata: Record<string, unknown>;
@@ -194,7 +198,7 @@ export async function getPaymentByReference(
  */
 export async function settlePayment(input: {
   paymentId: string;
-  source: "webhook" | "manual" | "reconcile";
+  source: "webhook" | "manual" | "reconcile" | "slip";
   providerRef?: string | null;
   reviewerId?: string | null;
   note?: string | null;
@@ -251,7 +255,7 @@ export async function settlePayment(input: {
 
     await audit(
       {
-        actorId: input.reviewerId ?? payment.user_id,
+        actorId: input.reviewerId ?? null,
         action: "payment.paid",
         entityType: "payment",
         entityId: payment.id,
@@ -313,11 +317,36 @@ export async function settlePayment(input: {
   });
 }
 
+async function notifySlipReviewers(payment: PaymentRow, title: string, body: string): Promise<void> {
+  const admins = await many<{ id: string }>(
+    `select p.id from profiles p join role_permissions rp on rp.role_id = p.role_id
+     where rp.permission_id = 'payments.verify' and p.status = 'active'`,
+  );
+  for (const admin of admins) {
+    await notify({
+      userId: admin.id,
+      type: "account",
+      title,
+      body,
+      link: "/admin/payments?status=MANUAL_REVIEW",
+    });
+  }
+}
+
+/**
+ * Stores a slip (unique by image hash) and, when SlipOK is configured,
+ * verifies it bank-side. Auto-approval is allowed only after:
+ *  - SlipOK validates the slip against the bank,
+ *  - the receiving account matches the branch registered with SlipOK,
+ *  - the amount matches the payment intent exactly,
+ *  - the slip has not been used before.
+ */
 export async function attachSlip(input: {
   reference: string;
   userId: string;
   evidenceUrl: string;
-}): Promise<{ ok: boolean; error?: string }> {
+  slipHash: string;
+}): Promise<{ ok: boolean; error?: string; verified?: boolean; credited?: boolean; message?: string }> {
   const payment = await one<PaymentRow>(
     "select * from payments where reference = $1 and user_id = $2",
     [input.reference, input.userId],
@@ -327,31 +356,140 @@ export async function attachSlip(input: {
   if (!["PENDING", "VERIFYING", "MANUAL_REVIEW", "EXPIRED"].includes(payment.status)) {
     return { ok: false, error: "This payment can no longer be submitted." };
   }
+  if (input.slipHash) {
+    const duplicate = await one<{ reference: string }>(
+      "select reference from payments where slip_hash = $1 and id <> $2",
+      [input.slipHash, payment.id],
+    );
+    if (duplicate) {
+      return {
+        ok: false,
+        error: "This slip has already been submitted for another payment. Each transfer can only be used once.",
+      };
+    }
+  }
+
   await withTransaction(async (tx) => {
     await tx.query(
-      `update payments set evidence_url = $2, status = 'MANUAL_REVIEW', updated_at = now() where id = $1`,
-      [payment.id, input.evidenceUrl],
+      `update payments set evidence_url = $2, slip_hash = $3, slip_verification = null,
+         status = 'MANUAL_REVIEW', updated_at = now() where id = $1`,
+      [payment.id, input.evidenceUrl, input.slipHash || null],
     );
-    const admins = await many<{ id: string }>(
-      `select p.id from profiles p join role_permissions rp on rp.role_id = p.role_id
-       where rp.permission_id = 'payments.verify' and p.status = 'active'`,
-      [],
-      tx,
-    );
-    for (const admin of admins) {
-      await notify(
-        {
-          userId: admin.id,
-          type: "account",
-          title: "Payment slip awaiting review",
-          body: `${input.reference} — ฿${Number(payment.amount).toFixed(2)}`,
-          link: "/admin/payments?status=MANUAL_REVIEW",
-        },
-        tx,
-      );
-    }
   });
-  return { ok: true };
+
+  const config = await getSlipConfig();
+  if (!config.enabled) {
+    await notifySlipReviewers(
+      payment,
+      "Payment slip awaiting review",
+      `${payment.reference} - ${Number(payment.amount).toFixed(2)} THB (manual verification)`,
+    );
+    return {
+      ok: true,
+      verified: false,
+      credited: false,
+      message:
+        "Slip uploaded. Automatic verification is not configured, so staff must check it against the bank statement before funds are credited.",
+    };
+  }
+
+  const result = await verifySlipForPayment(payment.id);
+  return {
+    ok: true,
+    verified: result.status === "verified",
+    credited: result.credited,
+    message: result.credited
+      ? "Slip verified by SlipOK and funds credited automatically."
+      : result.message,
+  };
+}
+
+export interface SlipVerificationOutcome extends SlipOutcome {
+  credited: boolean;
+  provider: "slipok";
+  notConfigured?: boolean;
+}
+
+/** Re-run bank-side verification for an existing payment. Safe to call repeatedly. */
+export async function verifySlipForPayment(paymentId: string): Promise<SlipVerificationOutcome> {
+  const payment = await one<PaymentRow>("select * from payments where id = $1", [paymentId]);
+  if (!payment) {
+    return { provider: "slipok", status: "error", credited: false, message: "Payment not found." };
+  }
+  if (!payment.evidence_url) {
+    return {
+      provider: "slipok",
+      status: "error",
+      credited: false,
+      message: "No slip is attached to this payment.",
+    };
+  }
+  if (payment.status === "PAID") {
+    return {
+      provider: "slipok",
+      status: "verified",
+      credited: true,
+      message: "This payment has already been confirmed.",
+    };
+  }
+
+  const result = await verifySlipImage({
+    evidenceRef: payment.evidence_url,
+    amountMinor: toMinor(payment.amount),
+  });
+  const checked = { ...result, checkedAt: new Date().toISOString() };
+  await one(
+    "update payments set slip_verification = $2::jsonb, updated_at = now() where id = $1 returning id",
+    [payment.id, JSON.stringify(checked)],
+  );
+
+  const config = await getSlipConfig();
+  if (result.status === "verified") {
+    if (config.autoApprove) {
+      try {
+        const settled = await settlePayment({
+          paymentId: payment.id,
+          source: "slip",
+          providerRef: result.transRef ?? null,
+          amountMinor: toMinor(payment.amount),
+          note: `SlipOK verified ${result.transRef ?? ""}`.trim(),
+        });
+        const credited = settled.status === "paid" || settled.status === "already_paid";
+        await one(
+          "update payments set slip_verification = $2::jsonb, updated_at = now() where id = $1 returning id",
+          [payment.id, JSON.stringify({ ...checked, credited, settledAt: new Date().toISOString() })],
+        );
+        return {
+          ...result,
+          credited,
+          message: credited
+            ? "Slip verified by SlipOK and funds credited automatically."
+            : "Slip verified; the payment was already settled or needs manual review.",
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Automatic crediting failed.";
+        await notifySlipReviewers(payment, "Verified slip needs attention", `${payment.reference}: ${message}`);
+        return { ...result, credited: false, message };
+      }
+    }
+    await notifySlipReviewers(
+      payment,
+      "Slip verified - approval required",
+      `${payment.reference}: SlipOK verified this slip. Auto-approval is disabled.`,
+    );
+    return {
+      ...result,
+      credited: false,
+      message: "Slip verified by SlipOK. Auto-approval is disabled, so staff must approve it.",
+    };
+  }
+
+  await notifySlipReviewers(
+    payment,
+    "Slip verification needs review",
+    `${payment.reference}: ${result.message}`,
+  );
+  return { ...result, credited: false };
 }
 
 export async function approveManualPayment(input: {

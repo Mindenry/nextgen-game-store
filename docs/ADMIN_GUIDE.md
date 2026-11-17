@@ -35,13 +35,40 @@ and every action is re-checked on the server.
 
 ## Payments and providers
 
-- **Settings → Payment settings** controls the PromptPay ID, receiver name, min/max deposit, QR
-  expiry and the active provider.
+- **Payment Settings** (sidebar, under Payments) is the dedicated page for the PromptPay ID,
+  receiver name, minimum/maximum deposit, QR expiry, active provider, SlipOK verification and a
+  live ฿1 test QR.
+- **Settings → Payment settings** also links to the dedicated page.
 - **Payment Providers** manages enabled channels and encrypted webhook secrets. Never paste
   secrets into the non-secret config JSON.
 - If automatic verification is not connected, use the manual flow; never mark paid without bank
   evidence.
 - The reconciliation cron expires stale payments every 10 minutes (or per your schedule).
+
+### Slip verification
+
+- Slip uploads are hashed; the same image cannot be reused on another payment.
+- **SlipOK** is implemented for real bank-side verification. Add the Branch ID + API key under
+  Payment Settings, enable verification and auto-approval, then test with a real ฿1 transfer.
+- SlipOK confirms: real bank transaction, receiving account, amount and whether the slip was
+  already used. Only a successful response credits the wallet.
+- Without SlipOK, every slip stays in **MANUAL_REVIEW** until a staff member checks the bank
+  statement. The system never auto-credits from an image alone.
+
+### 1 THB test product
+
+`npm run db:test-product` creates/refreshes **TEST ITEM — 1 THB Automatic Delivery** with ten
+encrypted test inventory units and sets the minimum deposit to ฿1. It is for testing only; remove
+or deactivate it before launch. Direct URL: `/products/test-digital-delivery-1-thb`.
+
+Recommended test flow:
+
+1. Payment Settings → enter your PromptPay ID (mobile or national ID) and keep minimum ฿1.
+2. Add SlipOK Branch ID/API key if you have them (otherwise skip and test manual review).
+3. Customer account → Wallet → Top up ฿1 → scan → transfer ฿1.
+4. Upload the slip. With SlipOK + auto-approve the balance updates automatically; otherwise open
+   Admin → Payments → approve after checking the bank statement.
+5. Buy the ฿1 test product and confirm delivery in My Products.
 
 ## Wallets
 

@@ -9,6 +9,8 @@ import { depositSchema, firstError } from "@/lib/validation";
 import { toMinor } from "@/lib/money";
 import { saveUpload, UploadError } from "@/lib/uploads";
 import { rateLimit } from "@/lib/rate-limit";
+import { createHash } from "node:crypto";
+import { getLocale } from "@/lib/i18n";
 
 export type DepositState = { error?: string };
 
@@ -49,11 +51,25 @@ export async function uploadSlipAction(_prev: SlipState, formData: FormData): Pr
   if (!limit.allowed) return { error: "Too many uploads. Please wait." };
 
   try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const slipHash = createHash("sha256").update(bytes).digest("hex");
     const url = await saveUpload({ file, folder: "slips", ownerId: user.id });
-    const result = await attachSlip({ reference, userId: user.id, evidenceUrl: url });
+    const result = await attachSlip({ reference, userId: user.id, evidenceUrl: url, slipHash });
     if (!result.ok) return { error: result.error ?? "Could not attach the slip." };
     revalidatePath(`/pay/${reference}`);
-    return { success: "Slip uploaded. Staff will verify your payment before funds are credited." };
+    const locale = await getLocale();
+    const th = locale === "th";
+    if (result.credited) {
+      return { success: th ? "?????????????????????????? ?????????????????????????" : result.message };
+    }
+    if (result.verified) {
+      return { success: th ? "????????????????? ????????????????????????????????" : result.message };
+    }
+    return {
+      success: th
+        ? "??????????????? ??????????????????????????????????????????????????"
+        : (result.message ?? "Slip uploaded. Staff will verify it before funds are credited."),
+    };
   } catch (error) {
     if (error instanceof UploadError) return { error: error.message };
     console.error("[slip] upload failed", error);

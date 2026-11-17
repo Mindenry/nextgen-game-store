@@ -1,6 +1,6 @@
 import "server-only";
-import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { env, runtimeMode } from "@/lib/env";
@@ -67,6 +67,46 @@ export async function saveUpload(input: {
   await mkdir(folderPath, { recursive: true });
   await writeFile(join(folderPath, name), bytes);
   return `/api/files/${folder}/${ownerId}/${name}`;
+}
+
+/** Read a stored upload for server-side verification (never exposed to clients). */
+export async function readUploadBytes(ref: string): Promise<{ bytes: Buffer; contentType: string } | null> {
+  if (!ref) return null;
+  try {
+    if (ref.startsWith("/api/files/")) {
+      const segments = ref.replace("/api/files/", "").split("/").map((segment) => segment.replace(/[^a-zA-Z0-9._-]/g, ""));
+      if (segments.length < 3 || segments.some((segment) => !segment || segment === "." || segment === "..")) return null;
+      const [folder, ownerId, file] = segments;
+      if (!["slips", "products"].includes(folder)) return null;
+      const base = resolve(process.cwd(), ".data", "uploads");
+      const target = resolve(base, join(folder, ownerId, file));
+      if (!target.startsWith(base)) return null;
+      const bytes = await readFile(target);
+      const extension = file.split(".").pop()?.toLowerCase();
+      return { bytes, contentType: extension === "png" ? "image/png" : extension === "webp" ? "image/webp" : "image/jpeg" };
+    }
+    if (ref.startsWith("sb://")) {
+      const rest = ref.slice(5);
+      const slash = rest.indexOf("/");
+      if (slash < 0 || !env.supabaseServiceKey) return null;
+      const bucket = rest.slice(0, slash);
+      const path = rest.slice(slash + 1);
+      const client = createClient(env.supabaseUrl, env.supabaseServiceKey, { auth: { persistSession: false } });
+      const { data, error } = await client.storage.from(bucket).download(path);
+      if (error || !data) return null;
+      return { bytes: Buffer.from(await data.arrayBuffer()), contentType: data.type || "image/jpeg" };
+    }
+    if (ref.startsWith("https://") || ref.startsWith("http://")) {
+      const response = await fetch(ref, { signal: AbortSignal.timeout(10_000) });
+      if (!response.ok) return null;
+      const bytes = Buffer.from(await response.arrayBuffer());
+      if (bytes.length > 6 * 1024 * 1024) return null;
+      return { bytes, contentType: response.headers.get("content-type") || "image/jpeg" };
+    }
+  } catch (error) {
+    console.error("[storage] failed to read upload", error);
+  }
+  return null;
 }
 
 export async function getFileUrl(ref: string, expiresIn = 3600): Promise<string | null> {

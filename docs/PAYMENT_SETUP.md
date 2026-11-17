@@ -114,15 +114,43 @@ The E2E suite automates this (valid, invalid, replayed, mismatched amount, dupli
 
 1. Customer creates a deposit/order with a QR or bank instructions.
 2. Customer scans / transfers the exact amount and uploads a slip.
-3. Slip is stored privately (`slips/<userId>/…` or a private Supabase path) and the payment moves
-   to `MANUAL_REVIEW`.
+3. Slip is stored privately (`slips/<userId>/…` or a private Supabase path), its SHA-256 is
+   recorded, and the payment moves to `MANUAL_REVIEW`.
 4. Staff open **Admin → Payments → Slips awaiting review**, compare the amount, destination
    account and reference against the bank statement, then approve or reject with a reason.
 5. Approval calls the same settlement service used by webhooks: wallet credit + delivery are
    atomic. The approval is audit logged; rejection cancels an unpaid order and releases the coupon.
 
-Never approve based on the slip image alone. Verify in the bank statement/business app. Do not ask
-customers for OTPs or passwords.
+Slip uploads are unique by image hash, so the same slip cannot be reused on another payment even
+before a provider is configured.
+
+## 3.1 Automatic slip verification (SlipOK)
+
+The store implements a real bank-side slip verification adapter for
+[SlipOK](https://slipok.com/api/). Configure it in **Admin → Payment Settings → ตรวจสลิปอัตโนมัติ
+(SlipOK)**:
+
+| Field | What to enter |
+|---|---|
+| Branch ID | The branch ID shown in SlipOK |
+| API Key | The API key from SlipOK (encrypted at rest with `ENCRYPTION_KEY`) |
+| เติมเงินอัตโนมัติ | Enable only after testing in SlipOK's plan/sandbox |
+
+When enabled, every slip upload is sent to SlipOK with `log=true` and the expected amount. SlipOK:
+
+- reads the slip QR and verifies it is a real bank transaction,
+- checks the slip is not already used (`1012`),
+- checks the receiving account against the branch registered with SlipOK (`1014`),
+- checks the amount (`1013`).
+
+Only a fully verified response credits the wallet. The transaction reference is stored as the
+payment's `provider_ref` (unique), the slip hash is unique, and the payment row is locked, so a
+replayed or duplicated slip cannot credit twice. Errors, bank delays (`1010`) and unconfigured
+credentials leave the payment in `MANUAL_REVIEW` and notify staff — the system never pretends a
+slip is genuine.
+
+Without SlipOK credentials, automatic verification is impossible; use manual review against the
+bank statement. Do not enable "auto approve" unless SlipOK is configured.
 
 ## 4. KBank
 

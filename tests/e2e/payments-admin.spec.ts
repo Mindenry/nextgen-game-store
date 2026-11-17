@@ -53,14 +53,14 @@ test.describe.serial("Payments: manual review and signed webhooks", () => {
       buffer: slipBuffer(),
     });
     await customerPage.getByRole("button", { name: /Submit slip for review/i }).click();
-    await expect(customerPage.getByText(/Slip uploaded/i)).toBeVisible();
+    await expect(customerPage.getByText(/[\u0E00-\u0E7F]|Slip uploaded/i).first()).toBeVisible();
     await expect(customerPage.getByText(/Manual review|MANUAL REVIEW/i).first()).toBeVisible();
 
     const adminContext = await browser.newContext();
     const adminPage = await adminContext.newPage();
     await login(adminPage, ADMIN);
     await adminPage.goto("/admin/payments?status=MANUAL_REVIEW");
-    const card = adminPage.locator("div").filter({ hasText: reference }).filter({ hasText: "Approve" }).first();
+    const card = adminPage.locator(`[data-payment-reference="${reference}"]`).first();
     await expect(card).toBeVisible();
     await card.locator('input[name="note"]').first().fill("Verified against bank statement (E2E)");
     await card.getByRole("button", { name: "Approve", exact: true }).click();

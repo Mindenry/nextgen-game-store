@@ -160,6 +160,12 @@ export default async function AdminSettingsPage() {
         <div className="space-y-4">
           <Card className="p-5">
             <h2 className="text-sm font-semibold">Payment settings</h2>
+            <p className="mt-1 text-[11px] text-muted">
+              PromptPay ID, minimum deposit and SlipOK verification now live on a dedicated page.
+            </p>
+            <Link href="/admin/payment-settings" className="mt-3 inline-block text-[11px] font-semibold text-primary hover:underline">
+              Open PromptPay &amp; slip verification setup →
+            </Link>
             <div className="mt-3">
               <AdminActionForm action={savePaymentSettingsAction} submitLabel="Save payment settings" compact>
                 <label className="mb-1 block text-[11px] font-semibold text-muted">PromptPay ID</label>

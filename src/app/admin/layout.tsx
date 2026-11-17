@@ -31,6 +31,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/inventory", label: "Inventory", icon: "inventory", permission: PERMISSIONS.inventoryView },
     { href: "/admin/wallet", label: "Wallets", icon: "wallet", permission: PERMISSIONS.walletAdjust },
     { href: "/admin/payments", label: "Payments", icon: "payments", badge: Number(counts?.payments ?? 0), permission: PERMISSIONS.paymentsView },
+    { href: "/admin/payment-settings", label: "Payment Settings", icon: "settings", permission: PERMISSIONS.settingsManage },
     { href: "/admin/payment-providers", label: "Payment Providers", icon: "providers", permission: PERMISSIONS.paymentsProviders },
     { href: "/admin/customers", label: "Customers", icon: "customers", permission: PERMISSIONS.customersView },
     { href: "/admin/coupons", label: "Coupons", icon: "coupons", permission: PERMISSIONS.couponsManage },

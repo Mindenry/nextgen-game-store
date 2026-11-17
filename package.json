@@ -18,7 +18,8 @@
     "db:seed-demo": "node scripts/seed-demo.mjs",
     "env:init": "node scripts/init-env.mjs",
     "check": "npm run typecheck && npm run test",
-    "test:e2e:chrome": "playwright test --project=chrome"
+    "test:e2e:chrome": "playwright test --project=chrome",
+    "db:test-product": "node scripts/create-test-product.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.16",

@@ -9,8 +9,8 @@ import { encryptSecret } from "@/lib/crypto";
 import { toMinor, toNumericString } from "@/lib/money";
 import { applyWalletEntry } from "@/lib/wallet";
 import { notify } from "@/lib/notifications";
-import { approveManualPayment, rejectManualPayment, expireStalePayments } from "@/lib/payments";
-import { setSettings } from "@/lib/settings";
+import { approveManualPayment, rejectManualPayment, expireStalePayments, verifySlipForPayment } from "@/lib/payments";
+import { getSettings, setSettings } from "@/lib/settings";
 
 export type AdminResult = { error?: string; success?: string };
 
@@ -150,6 +150,77 @@ export async function adjustWalletAction(_prev: AdminResult, formData: FormData)
       return { error: "A debit cannot take the wallet below zero." };
     }
     return { error: error instanceof Error ? error.message : "Could not adjust the wallet." };
+  }
+}
+
+export async function saveSlipSettingsAction(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
+  try {
+    const user = await guard(PERMISSIONS.settingsManage);
+    const enabled = formData.get("slipEnabled") === "on";
+    const autoApprove = formData.get("autoApprove") === "on";
+    const branchId = s(formData, "branchId").slice(0, 60);
+    const apiKey = s(formData, "apiKey");
+    const existing = await getSettings();
+    const existingKey = String(existing["slip.slipok_api_key"] ?? "");
+    if (enabled && !branchId) return { error: "SlipOK Branch ID is required when verification is enabled." };
+    const encryptedKey = apiKey ? encryptSecret(apiKey) : existingKey;
+    if (enabled && !encryptedKey) {
+      return { error: "SlipOK API key is required when verification is enabled." };
+    }
+    await setSettings(
+      {
+        "slip.enabled": enabled,
+        "slip.auto_approve": autoApprove,
+        "slip.slipok_branch_id": branchId,
+        "slip.slipok_api_key": encryptedKey,
+        "slip.provider": "slipok",
+      },
+      user.id,
+    );
+    await audit({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "settings.slip_verification_update",
+      entityType: "system_settings",
+      entityId: "slip",
+      after: { enabled, autoApprove, branchId, keyRotated: Boolean(apiKey) },
+    });
+    revalidatePath("/admin/payment-settings");
+    revalidatePath("/admin/payments");
+    return {
+      success: enabled
+        ? "SlipOK verification settings saved. New slips will be verified automatically."
+        : "Slip verification disabled. Slips will require manual review.",
+    };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Could not save slip settings." };
+  }
+}
+
+export async function verifySlipAction(paymentId: string): Promise<AdminResult> {
+  try {
+    const user = await guard(PERMISSIONS.paymentsVerify);
+    const result = await verifySlipForPayment(paymentId);
+    await audit({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "payment.slip_verify",
+      entityType: "payment",
+      entityId: paymentId,
+      after: {
+        status: result.status,
+        code: result.code ?? null,
+        transRef: result.transRef ?? null,
+        credited: result.credited,
+      },
+    });
+    revalidatePath("/admin/payments");
+    if (result.status === "verified") {
+      return { success: result.credited ? "Slip verified and payment credited." : result.message };
+    }
+    return { error: result.message };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Could not verify the slip." };
   }
 }
 

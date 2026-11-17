@@ -28,8 +28,9 @@ other scripts that open `.data/pglite` while the dev server is running.
 | `promptpay.test.ts` | target normalisation, EMV field structure, CRC16-CCITT trailer, amount/reference validation |
 | `crypto.test.ts` | AES-256-GCM round-trip, tamper detection, scrypt hashing/verification, constant-time HMAC compare |
 | `rbac.test.ts` | customer denial, granted permissions, null-user safety |
+| `slipok.test.ts` | SlipOK success mapping, duplicate slip, amount mismatch, wrong receiver, bank delay, auth failure |
 
-Results (this machine): **5 files, 20 tests passing**.
+Results (this machine): **6 files, 25 tests passing**.
 
 ## E2E tests (Playwright)
 
@@ -39,12 +40,13 @@ Results (this machine): **5 files, 20 tests passing**.
 | `checkout.spec.ts` | admin wallet adjustment, customer login, add to cart, coupon preview, terms acceptance, wallet checkout, success page, automatic inventory delivery, credential reveal, ledger entry, customer blocked from `/admin` |
 | `payments-admin.spec.ts` | PromptPay ID + provider secret setup, deposit QR, slip upload, staff approval, wallet credit, review queue removal, webhook invalid signature (401), valid signature (200), status API, replay idempotency, duplicate provider ref (409), amount mismatch (409) |
 | `topup.spec.ts` | dynamic top-up field validation, wallet top-up order, staff completion in the fulfilment queue, customer vault/order status |
-| `admin.spec.ts` | all 22 admin modules render without an error boundary, order-detail navigation |
+| `admin.spec.ts` | all 23 admin modules render without an error boundary, order-detail navigation |
+| `payment-settings.spec.ts` | dedicated PromptPay/SlipOK page renders, minimum deposit is ฿1, ฿1 test product is purchasable |
 
 The webhook test computes a real HMAC-SHA256 over the raw JSON body using the secret configured
 through the admin UI, so it exercises the production route end-to-end.
 
-Recorded result for this build: **14 E2E tests passing** (Chrome channel), plus a production
+Recorded result for this build: **15 E2E tests passing** (Chrome channel), plus a production
 `next start` smoke check of `/`, `/products`, product detail, `/topup`, `/login`, `/api/health`
 and `/robots.txt` (all HTTP 200). Admin client navigation, theme toggle and account menu were
 verified in the production build.

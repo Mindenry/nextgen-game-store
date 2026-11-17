@@ -12,6 +12,7 @@ const PAGES: { path: string; heading: string }[] = [
   { path: "/admin/wallet", heading: /^Wallets$/i },
   { path: "/admin/payments", heading: /^Payments$/i },
   { path: "/admin/payment-providers", heading: /Payment providers/i },
+  { path: "/admin/payment-settings", heading: /Payment settings/i },
   { path: "/admin/customers", heading: /^Customers$/i },
   { path: "/admin/coupons", heading: /^Coupons$/i },
   { path: "/admin/promotions", heading: /^Promotions$/i },

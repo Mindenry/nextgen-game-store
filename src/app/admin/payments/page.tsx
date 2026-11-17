@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Check, Clock, ExternalLink, Search, X } from "lucide-react";
+import { Check, Clock, ExternalLink, Search, ShieldCheck, X } from "lucide-react";
 import { requireStaff } from "@/lib/auth";
 import { can, PERMISSIONS } from "@/lib/auth/rbac";
 import { listPayments, listWebhookEvents } from "@/lib/admin";
@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { AccessDenied } from "@/components/admin/denied";
 import { AdminActionForm } from "@/components/admin/admin-action-form";
 import { AdminActionButton } from "@/components/admin/admin-action-button";
-import { approvePaymentAction, rejectPaymentAction, expirePaymentsAction } from "@/actions/admin-finance";
+import { approvePaymentAction, rejectPaymentAction, expirePaymentsAction, verifySlipAction } from "@/actions/admin-finance";
 
 export const metadata = { title: "Payments" };
 
@@ -53,6 +53,9 @@ export default async function AdminPaymentsPage({
               icon={<Clock className="size-3.5" />}
               confirmText="Mark all PENDING/VERIFYING payments past their expiry as EXPIRED and cancel unpaid orders?"
             />
+            <Link href="/admin/payment-settings" className={buttonClass({ variant: "outline", size: "sm" })}>
+              PromptPay setup
+            </Link>
             <Link href="/admin/payment-providers" className={buttonClass({ variant: "outline", size: "sm" })}>
               Providers
             </Link>
@@ -81,7 +84,7 @@ export default async function AdminPaymentsPage({
           </div>
           <div className="mt-3 grid gap-3 lg:grid-cols-2">
             {reviewRows.map((row) => (
-              <div key={row.id} className="rounded-xl border border-border bg-surface-2/50 p-3.5">
+              <div key={row.id} data-payment-reference={row.reference} className="rounded-xl border border-border bg-surface-2/50 p-3.5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-mono text-[11px] font-semibold text-fg">{row.reference}</p>
@@ -102,8 +105,41 @@ export default async function AdminPaymentsPage({
                     <span className="text-danger">No evidence attached</span>
                   )}
                 </div>
+                {row.slip_verification ? (
+                  <div className="mt-2 rounded-lg border border-border bg-surface p-2 text-[10px]">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge
+                        tone={
+                          row.slip_verification.status === "verified"
+                            ? "success"
+                            : row.slip_verification.status === "rejected"
+                              ? "danger"
+                              : row.slip_verification.status === "pending"
+                                ? "warning"
+                                : "neutral"
+                        }
+                      >
+                        SlipOK: {String(row.slip_verification.status ?? "unknown")}
+                      </Badge>
+                      {row.slip_verification.transRef ? (
+                        <span className="font-mono text-muted">Ref {String(row.slip_verification.transRef)}</span>
+                      ) : null}
+                      {row.slip_hash ? <span className="font-mono text-muted">hash {row.slip_hash.slice(0, 10)}?</span> : null}
+                    </div>
+                    <p className="mt-1 text-muted">{String(row.slip_verification.message ?? "")}</p>
+                  </div>
+                ) : null}
                 {canVerify ? (
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <div className="mt-3 space-y-2">
+                    {row.evidenceUrl ? (
+                      <AdminActionButton
+                        action={verifySlipAction.bind(null, row.id)}
+                        label="Verify slip with SlipOK"
+                        variant="outline"
+                        icon={<ShieldCheck className="size-3" />}
+                      />
+                    ) : null}
+                  <div className="grid gap-2 sm:grid-cols-2">
                     <AdminActionForm action={approvePaymentAction} submitLabel="Approve" submitVariant="success" compact>
                       <input type="hidden" name="paymentId" value={row.id} />
                       <Input name="note" placeholder="Verification note" className="!h-8 !text-[11px]" />
@@ -112,6 +148,7 @@ export default async function AdminPaymentsPage({
                       <input type="hidden" name="paymentId" value={row.id} />
                       <Input name="note" required placeholder="Rejection reason" className="!h-8 !text-[11px]" />
                     </AdminActionForm>
+                  </div>
                   </div>
                 ) : null}
               </div>
