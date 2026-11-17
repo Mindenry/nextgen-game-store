@@ -273,9 +273,9 @@ export async function savePaymentSettingsAction(_prev: AdminResult, formData: Fo
     );
     const truemoneyInstructions = `ส่งซองอั่งเปา TrueMoney มาที่เบอร์ ${truemoneyPhone} แล้ววางลิงก์ซองอั่งเปาในช่องด้านล่าง เจ้าหน้าที่จะ redeem และอนุมัติยอดให้`;
     await run(
-      `update payment_providers set config = jsonb_set(coalesce(config, '{}'::jsonb), '{instructions}', to_jsonb($2::text)), updated_at = now()
+      `update payment_providers set config = jsonb_set(coalesce(config, '{}'::jsonb), '{instructions}', to_jsonb($1::text)), updated_at = now()
        where id = 'truemoney_angpao'`,
-      [truemoneyPhone, truemoneyInstructions],
+      [truemoneyInstructions],
     );
 
     await audit({
