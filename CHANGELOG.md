@@ -31,4 +31,9 @@ First complete release of NEXTGEN GAME STORE.
 - scrypt password hashing, signed sessions, AES-256-GCM secrets, RLS policies, rate limiting,
   server-side price and payment validation, unique indexes preventing double credit.
 
+### Changed
+
+- The TrueMoney receiving phone is configured in **Admin → Payment Settings**; no personal phone
+  numbers ship in the repository.
+
 [1.0.0]: https://github.com/Mindenry/nextgen-game-store/releases/tag/v1.0.0
