@@ -170,6 +170,23 @@ for real confirmation). This is the same "pre-check before bank API" purpose doc
 
 Algorithm references and attribution are in the root `NOTICE` file.
 
+### 3.2.1 DEMO/test auto-credit (≤ ฿1, never in production)
+
+For end-to-end testing of the "transfer → attach slip → balance credited" flow without a paid
+verification provider, there is an opt-in demo mode. It is off unless **all** of the following hold:
+
+- `NODE_ENV !== "production"`,
+- Admin → Payment Settings → **โหมดทดลอง (DEMO)** checkbox is enabled
+  (`slip.self_auto_credit = true`),
+- the payment is a `wallet_deposit`,
+- the amount is **≤ ฿1**,
+- the slip Mini QR passed the structural check and its transfer reference is new.
+
+When it triggers, the payment is settled with `verification_source = 'self_test'`, the wallet ledger
+says `TEST auto-credit …`, and the payment page shows a red/warning "Test credit applied — NOT a bank
+confirmation" notice. The setting is ignored in production builds, so real money is never credited
+from an unverified image. Keep it off for real sales.
+
 ## 3.3 TrueMoney Angpao (manual, phone 0812345678)
 
 The `truemoney_angpao` provider accepts a voucher link from `gift.truemoney.com`:

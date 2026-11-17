@@ -68,6 +68,15 @@ and every action is re-checked on the server.
 - Automatic redemption is intentionally not implemented: TrueMoney has no public unauthenticated
   voucher API, and automating it with OTP/session access would breach the service terms.
 
+### DEMO auto-credit (test only)
+
+Payment Settings has an opt-in **โหมดทดลอง (DEMO)** switch. When enabled in a non-production build,
+a wallet top-up of **≤ ฿1** whose slip Mini QR passes the structural check is credited immediately, so
+you can test the full "transfer → slip → balance" flow. Those payments are stored with
+`verification_source = 'self_test'`, appear as "Test credit applied" and carry a clear warning that
+no bank confirmation happened. It is disabled automatically in production and should stay off for
+real sales.
+
 ### 1 THB test product
 
 `npm run db:test-product` creates/refreshes **TEST ITEM — 1 THB Automatic Delivery** with ten
