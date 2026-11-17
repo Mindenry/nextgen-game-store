@@ -52,6 +52,12 @@ export default async function PayPage({ params }: { params: Promise<{ reference:
   const autoVerify =
     (provider?.kind === "webhook" || provider?.kind === "promptpay" || provider?.kind === "bank") &&
     Boolean(env.webhookSecret || provider?.secret_encrypted);
+  const testCredit = payment.verification_source === "self_test";
+  const demoAutoCredit =
+    payment.purpose === "wallet_deposit" &&
+    Number(payment.amount) <= 1 &&
+    env.nodeEnv !== "production" &&
+    settings["slip.self_auto_credit"] === true;
   const pending = ["PENDING", "VERIFYING", "MANUAL_REVIEW"].includes(status);
   const failed = ["EXPIRED", "REJECTED", "FAILED", "REFUNDED"].includes(status);
 
@@ -90,14 +96,22 @@ export default async function PayPage({ params }: { params: Promise<{ reference:
                   <BadgeCheck className="size-6" />
                 </span>
                 <div>
-                  <h2 className="text-lg font-semibold">Payment verified</h2>
+                  <h2 className="text-lg font-semibold">{testCredit ? "Test credit applied" : "Payment verified"}</h2>
                   <p className="mt-1 text-sm text-muted">
-                    {formatTHB(payment.amount)} was confirmed
-                    {payment.paid_at ? ` on ${formatDate(payment.paid_at, true)}` : ""}.
-                    {payment.purpose === "wallet_deposit"
+                    {testCredit
+                      ? `${formatTHB(payment.amount)} demo credit was added from a structural QR pre-check. This is NOT a bank confirmation.`
+                      : `${formatTHB(payment.amount)} was confirmed${payment.paid_at ? ` on ${formatDate(payment.paid_at, true)}` : ""}.`}
+                    {!testCredit && payment.purpose === "wallet_deposit"
                       ? " The amount is now in your wallet."
-                      : " Your order is now being delivered."}
+                      : !testCredit
+                        ? " Your order is now being delivered."
+                        : ""}
                   </p>
+                  {testCredit ? (
+                    <p className="mt-2 rounded-lg border border-warning/30 bg-warning/8 p-2 text-[10px] font-medium text-warning">
+                      DEMO/TEST mode: only enabled for ≤฿1 in development. Add SlipOK or verify the bank statement for real money.
+                    </p>
+                  ) : null}
                   <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
                     <span className="rounded-md border border-border bg-surface-2 px-2 py-1">
                       Verification: {payment.verification_source ?? "manual"}
@@ -218,9 +232,9 @@ export default async function PayPage({ params }: { params: Promise<{ reference:
                       <div className="flex gap-2">
                         <Info className="mt-0.5 size-3.5 shrink-0" />
                         <p>
-                          Automatic webhook verification is not connected for this provider. Upload your payment slip
-                          and staff will verify it before any funds are credited. The status will never show as paid
-                          without confirmation.
+                          {demoAutoCredit
+                            ? "DEMO/test mode: wallet top-ups up to ฿1 are credited automatically when the slip Mini QR passes the structural check. This is not a bank confirmation — real amounts still need SlipOK/KBank or manual review."
+                            : "Automatic webhook verification is not connected for this provider. Upload your payment slip and staff will verify it before any funds are credited. The status will never show as paid without confirmation."}
                         </p>
                       </div>
                     </Alert>
@@ -266,8 +280,9 @@ export default async function PayPage({ params }: { params: Promise<{ reference:
                       <SlipUploader reference={payment.reference} />
                     </div>
                     <p className="mt-2 text-[10px] leading-relaxed text-muted">
-                      Uploading a slip does not credit your wallet automatically. Finance staff verify the amount, account
-                      and reference against the bank statement.
+                      {demoAutoCredit
+                        ? "DEMO mode: a slip with a structurally valid Mini QR is credited instantly for amounts up to ฿1. Real amounts are reviewed by finance staff against the bank statement."
+                        : "Uploading a slip does not credit your wallet automatically. Finance staff verify the amount, account and reference against the bank statement."}
                     </p>
                   </>
                 )}

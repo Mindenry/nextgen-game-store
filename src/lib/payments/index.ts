@@ -206,7 +206,7 @@ export async function getPaymentByReference(
  */
 export async function settlePayment(input: {
   paymentId: string;
-  source: "webhook" | "manual" | "reconcile" | "slip";
+  source: "webhook" | "manual" | "reconcile" | "slip" | "self_test";
   providerRef?: string | null;
   reviewerId?: string | null;
   note?: string | null;
@@ -278,7 +278,7 @@ export async function settlePayment(input: {
         userId: payment.user_id,
         amountMinor: toMinor(payment.amount),
         type: "deposit",
-        description: `Wallet top-up ${payment.reference}`,
+        description: input.source === "self_test" ? `TEST auto-credit ${payment.reference}` : `Wallet top-up ${payment.reference}`,
         paymentId: payment.id,
         reference: `DEP-${payment.reference}`,
       });
@@ -286,7 +286,7 @@ export async function settlePayment(input: {
         {
           userId: payment.user_id,
           type: "deposit_completed",
-          title: "Wallet top-up completed",
+          title: input.source === "self_test" ? "Test wallet credit applied" : "Wallet top-up completed",
           body: `฿${Number(payment.amount).toFixed(2)} was added to your wallet.`,
           link: "/dashboard/wallet",
         },
@@ -363,6 +363,7 @@ export async function attachSlip(input: {
   parsed?: boolean;
   parsedReference?: string;
   parsedBank?: string;
+  testCredit?: boolean;
 }> {
   const payment = await one<PaymentRow>(
     "select * from payments where reference = $1 and user_id = $2",
@@ -452,7 +453,56 @@ export async function attachSlip(input: {
       : "Slip uploaded. Staff must verify it manually before crediting.";
 
   const config = await getSlipConfig();
+  const runtimeSettings = await getSettings();
+  const selfAutoCredit =
+    env.nodeEnv !== "production" && runtimeSettings["slip.self_auto_credit"] === true;
   if (!config.enabled) {
+    if (
+      selfAutoCredit &&
+      selfCheck?.status === "parsed" &&
+      payment.purpose === "wallet_deposit" &&
+      Number(payment.amount) <= 1
+    ) {
+      try {
+        await settlePayment({
+          paymentId: payment.id,
+          source: "self_test",
+          amountMinor: toMinor(payment.amount),
+          note: "DEMO self-QR auto-credit (not bank-verified)",
+        });
+        await one(
+          "update payments set slip_verification = $2::jsonb, updated_at = now() where id = $1 returning id",
+          [
+            payment.id,
+            JSON.stringify({
+              self: {
+                ...(selfCheck ?? {}),
+                testAutoCredit: true,
+                credited: true,
+                checkedAt: new Date().toISOString(),
+              },
+            }),
+          ],
+        );
+        return {
+          ok: true,
+          verified: false,
+          credited: true,
+          testCredit: true,
+          parsed: true,
+          parsedReference,
+          parsedBank,
+          message:
+            "DEMO test mode: ?1 was credited automatically from a structural QR pre-check. This is not a bank confirmation.",
+        };
+      } catch (error) {
+        console.error("[slip] demo auto-credit failed", error);
+        return {
+          ok: false,
+          error: "The test auto-credit could not be applied. The slip remains under manual review.",
+        };
+      }
+    }
     await notifySlipReviewers(
       payment,
       "Payment slip awaiting review",
