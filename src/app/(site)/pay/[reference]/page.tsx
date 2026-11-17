@@ -24,11 +24,19 @@ import { CopyButton, PaymentStatusWatcher } from "@/components/pay-client";
 import { SlipUploader } from "@/components/slip-uploader";
 import { TruemoneyVoucherForm } from "@/components/truemoney-voucher-form";
 import { formatDate } from "@/lib/utils";
+import { getLocale } from "@/lib/i18n";
 
 export const metadata = { title: "Payment" };
 
-export default async function PayPage({ params }: { params: Promise<{ reference: string }> }) {
+export default async function PayPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ reference: string }>;
+  searchParams: Promise<{ uploaded?: string }>;
+}) {
   const { reference } = await params;
+  const { uploaded } = await searchParams;
   const user = await requireUser(`/pay/${reference}`);
   const payment = await getPaymentByReference(reference);
   if (!payment) notFound();
@@ -46,6 +54,8 @@ export default async function PayPage({ params }: { params: Promise<{ reference:
     payment.evidence_url ? getFileUrl(payment.evidence_url) : Promise.resolve(null),
     getSettings(),
   ]);
+  const locale = await getLocale();
+  const th = locale === "th";
   const truemoneyPhone = String(settings["truemoney.phone"] ?? "0812345678");
 
   const qr = payment.qr_payload ? await qrDataUrl(payment.qr_payload) : null;
@@ -67,6 +77,21 @@ export default async function PayPage({ params }: { params: Promise<{ reference:
 
   return (
     <div className="container-page max-w-4xl py-8 md:py-12">
+      {uploaded === "1" ? (
+        <Alert variant={status === "PAID" ? "success" : "info"} className="mb-4">
+          {status === "PAID"
+            ? testCredit
+              ? th
+                ? "แนบสลิปแล้ว — โหมดทดลองตรวจ QR ผ่านและเติมเงินเข้ากระเป๋าอัตโนมัติแล้ว (ไม่ได้ยืนยันกับธนาคาร)"
+                : "Slip attached — demo mode credited your wallet automatically from the QR pre-check (not a bank confirmation)."
+              : th
+                ? "แนบสลิปแล้ว — ตรวจสอบผ่านและเงินเข้ากระเป๋าของคุณแล้ว"
+                : "Slip attached — verification passed and your wallet has been credited."
+            : th
+              ? "แนบสลิปเรียบร้อยแล้ว — เจ้าหน้าที่จะตรวจสอบกับรายการเดินบัญชีและอนุมัติให้โดยเร็ว"
+              : "Slip attached — finance staff will check the bank statement and approve it shortly."}
+        </Alert>
+      ) : null}
       <div className="mb-5">
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
           {payment.purpose === "wallet_deposit" ? "Wallet top-up" : "Order payment"}
@@ -264,25 +289,35 @@ export default async function PayPage({ params }: { params: Promise<{ reference:
                   </>
                 ) : (
                   <>
-                    <h3 className="text-sm font-semibold">Already paid? Submit your evidence</h3>
+                    <h3 className="text-sm font-semibold">
+                      {th ? "โอนแล้ว? แนบสลิปตรงนี้" : "Already paid? Submit your evidence"}
+                    </h3>
                     <p className="mt-1 text-[11px] text-muted">
-                      Slips are stored privately. Only you and authorised finance staff can view them.
+                      {th
+                        ? "สลิปถูกเก็บเป็นส่วนตัว เห็นได้เฉพาะคุณและเจ้าหน้าที่การเงิน"
+                        : "Slips are stored privately. Only you and authorised finance staff can view them."}
                     </p>
                     {evidenceUrl ? (
                       <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3">
-                        <p className="text-xs text-fg-soft">Slip attached — awaiting review</p>
+                        <p className="text-xs text-fg-soft">
+                          {th ? "แนบสลิปแล้ว — รอเจ้าหน้าที่ตรวจสอบ" : "Slip attached — awaiting review"}
+                        </p>
                         <a href={evidenceUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] font-semibold text-primary hover:underline">
-                          View
+                          {th ? "ดูสลิป" : "View"}
                         </a>
                       </div>
                     ) : null}
                     <div className="mt-3">
-                      <SlipUploader reference={payment.reference} />
+                      <SlipUploader reference={payment.reference} locale={locale} />
                     </div>
                     <p className="mt-2 text-[10px] leading-relaxed text-muted">
                       {demoAutoCredit
-                        ? "DEMO mode: a slip with a structurally valid Mini QR is credited instantly for amounts up to ฿1. Real amounts are reviewed by finance staff against the bank statement."
-                        : "Uploading a slip does not credit your wallet automatically. Finance staff verify the amount, account and reference against the bank statement."}
+                        ? th
+                          ? "โหมดทดลอง: สลิปที่ QR ผ่านการตรวจโครงสร้างจะเติมเงินทันทีเฉพาะยอดไม่เกิน 1 บาท ส่วนยอดจริงแอดมินจะตรวจกับรายการเดินบัญชี"
+                          : "DEMO mode: a slip with a structurally valid Mini QR is credited instantly for amounts up to ฿1. Real amounts are reviewed by finance staff against the bank statement."
+                        : th
+                          ? "การแนบสลิปไม่ได้เติมเงินอัตโนมัติ เจ้าหน้าที่จะตรวจยอด บัญชีผู้รับ และเลขอ้างอิงกับรายการเดินบัญชี"
+                          : "Uploading a slip does not credit your wallet automatically. Finance staff verify the amount, account and reference against the bank statement."}
                     </p>
                   </>
                 )}

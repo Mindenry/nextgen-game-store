@@ -170,7 +170,26 @@ for real confirmation). This is the same "pre-check before bank API" purpose doc
 
 Algorithm references and attribution are in the root `NOTICE` file.
 
-### 3.2.1 DEMO/test auto-credit (≤ ฿1, never in production)
+### 3.2.1 Slip upload troubleshooting
+
+The picker shows a thumbnail, file name and size as soon as a file is chosen, and the payment page
+returns to the top with a confirmation banner after a successful attach. If a slip still will not
+attach, the message under the picker explains why:
+
+| Message (TH) | Cause | Fix |
+|---|---|---|
+| ไฟล์ HEIC จาก iPhone ยังอ่านไม่ได้ | iPhone photos are HEIC | Camera → Formats → **Most Compatible**, screenshot it, or convert to JPG/PNG |
+| ไฟล์ใหญ่ … เกินขีดจำกัด 5 MB | File over 5 MB | Compress or retake as a screenshot |
+| รองรับเฉพาะไฟล์ JPG, PNG หรือ WebP | Wrong file type | Convert to JPG, PNG or WebP |
+| สลิปนี้ถูกใช้กับรายการอื่นไปแล้ว | The same image was used before | Attach the slip for **this** transfer; one slip = one payment |
+| เลขอ้างอิงในสลิปนี้ถูกใช้ไปแล้ว | Same bank transaction reference | Use the new transfer's slip |
+| รายการนี้ส่งสลิปไม่ได้แล้ว | QR expired or the payment closed | Create a new top-up |
+| อัปโหลดบ่อยเกินไป | Rate limit: 8 uploads / 10 minutes | Wait a few minutes |
+
+Rules enforced by the server: JPG/PNG/WebP only, ≤ 5 MB, magic-byte check, SHA-256 image hash unique,
+bank transaction reference unique, and payment status must be PENDING/VERIFYING/MANUAL_REVIEW/EXPIRED.
+
+### 3.2.2 DEMO auto-credit (≤ ฿1, never in production)
 
 For end-to-end testing of the "transfer → attach slip → balance credited" flow without a paid
 verification provider, there is an opt-in demo mode. It is off unless **all** of the following hold:
