@@ -53,10 +53,12 @@ honest about that:
 
 1. The customer transfers to your PromptPay ID and uploads the slip.
 2. The server decodes the slip Mini QR (structure + CRC + bank reference) as a **pre-check**.
-3. **Money is credited only from your own bank data.** Import the account statement CSV in
+3. If you configure **EasySlip** or **SlipOK**, the slip is looked up at the bank: real transaction,
+   amount, duplicate and — with EasySlip — the **receiver account name**, which must match the name
+   you entered. Only a verified slip credits the wallet.
+4. **Free alternative (no provider):** import the account statement CSV in
    **Admin → Bank Reconciliation**; the system matches incoming credits to open payments (exact
    `NG…` reference in the memo, otherwise unique amount inside a time window) and credits once.
-4. SlipOK/KBank can replace or complement step 3 if you have credentials.
 
 A slip that was not actually paid into your account stays in `MANUAL_REVIEW` and is never credited.
 

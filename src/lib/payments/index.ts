@@ -509,14 +509,14 @@ export async function attachSlip(input: {
     parsedReference,
     parsedBank,
     message: result.credited
-      ? "Slip verified by SlipOK and funds credited automatically."
+      ? "Slip verified by the slip provider and funds credited automatically."
       : result.message,
   };
 }
 
 export interface SlipVerificationOutcome extends SlipOutcome {
   credited: boolean;
-  provider: "slipok";
+  provider: "slipok" | "easyslip";
   notConfigured?: boolean;
 }
 
@@ -524,11 +524,11 @@ export interface SlipVerificationOutcome extends SlipOutcome {
 export async function verifySlipForPayment(paymentId: string): Promise<SlipVerificationOutcome> {
   const payment = await one<PaymentRow>("select * from payments where id = $1", [paymentId]);
   if (!payment) {
-    return { provider: "slipok", status: "error", credited: false, message: "Payment not found." };
+    return { provider: (await getSlipConfig()).provider, status: "error", credited: false, message: "Payment not found." };
   }
   if (!payment.evidence_url) {
     return {
-      provider: "slipok",
+      provider: (await getSlipConfig()).provider,
       status: "error",
       credited: false,
       message: "No slip is attached to this payment.",
@@ -536,7 +536,7 @@ export async function verifySlipForPayment(paymentId: string): Promise<SlipVerif
   }
   if (payment.status === "PAID") {
     return {
-      provider: "slipok",
+      provider: (await getSlipConfig()).provider,
       status: "verified",
       credited: true,
       message: "This payment has already been confirmed.",
@@ -564,7 +564,7 @@ export async function verifySlipForPayment(paymentId: string): Promise<SlipVerif
           source: "slip",
           providerRef: result.transRef ?? null,
           amountMinor: toMinor(payment.amount),
-          note: `SlipOK verified ${result.transRef ?? ""}`.trim(),
+          note: `${result.provider === "easyslip" ? "EasySlip" : "SlipOK"} verified ${result.transRef ?? ""}`.trim(),
         });
         const credited = settled.status === "paid" || settled.status === "already_paid";
         await one(
@@ -575,7 +575,7 @@ export async function verifySlipForPayment(paymentId: string): Promise<SlipVerif
           ...result,
           credited,
           message: credited
-            ? "Slip verified by SlipOK and funds credited automatically."
+            ? "Slip verified by the slip provider and funds credited automatically."
             : "Slip verified; the payment was already settled or needs manual review.",
         };
       } catch (error) {
@@ -587,12 +587,12 @@ export async function verifySlipForPayment(paymentId: string): Promise<SlipVerif
     await notifySlipReviewers(
       payment,
       "Slip verified - approval required",
-      `${payment.reference}: SlipOK verified this slip. Auto-approval is disabled.`,
+      `${payment.reference}: the slip provider verified this slip. Auto-approval is disabled.`,
     );
     return {
       ...result,
       credited: false,
-      message: "Slip verified by SlipOK. Auto-approval is disabled, so staff must approve it.",
+      message: "Slip verified by the provider. Auto-approval is disabled, so staff must approve it.",
     };
   }
 

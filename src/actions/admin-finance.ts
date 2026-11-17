@@ -158,22 +158,45 @@ export async function saveSlipSettingsAction(_prev: AdminResult, formData: FormD
     const user = await guard(PERMISSIONS.settingsManage);
     const enabled = formData.get("slipEnabled") === "on";
     const autoApprove = formData.get("autoApprove") === "on";
+    const provider = s(formData, "slipProvider") === "easyslip" ? "easyslip" : "slipok";
     const branchId = s(formData, "branchId").slice(0, 60);
     const apiKey = s(formData, "apiKey");
-    const existing = await getSettings();
-    const existingKey = String(existing["slip.slipok_api_key"] ?? "");
-    if (enabled && !branchId) return { error: "SlipOK Branch ID is required when verification is enabled." };
-    const encryptedKey = apiKey ? encryptSecret(apiKey) : existingKey;
-    if (enabled && !encryptedKey) {
-      return { error: "SlipOK API key is required when verification is enabled." };
+    const easySlipKey = s(formData, "easySlipKey");
+    const receiverName = s(formData, "slipReceiverName").slice(0, 120);
+    const maxAgeDays = Number(s(formData, "maxAgeDays") || 30);
+    if (!Number.isFinite(maxAgeDays) || maxAgeDays < 1 || maxAgeDays > 365) {
+      return { error: "Slip max age must be between 1 and 365 days." };
     }
+
+    const existing = await getSettings();
+    const existingSlipOkKey = String(existing["slip.slipok_api_key"] ?? "");
+    const existingEasySlipKey = String(existing["slip.easyslip_api_key"] ?? "");
+    const encryptedSlipOk = apiKey ? encryptSecret(apiKey) : existingSlipOkKey;
+    const encryptedEasySlip = easySlipKey ? encryptSecret(easySlipKey) : existingEasySlipKey;
+
+    if (enabled && provider === "slipok") {
+      if (!branchId) return { error: "SlipOK Branch ID is required when SlipOK verification is enabled." };
+      if (!encryptedSlipOk) return { error: "SlipOK API key is required when verification is enabled." };
+    }
+    if (enabled && provider === "easyslip") {
+      if (!encryptedEasySlip) return { error: "EasySlip API key is required when EasySlip verification is enabled." };
+      if (!receiverName) {
+        return {
+          error: "Enter the receiving account name (the name printed on the bank account) so the receiver can be checked.",
+        };
+      }
+    }
+
     await setSettings(
       {
         "slip.enabled": enabled,
         "slip.auto_approve": autoApprove,
+        "slip.provider": provider,
         "slip.slipok_branch_id": branchId,
-        "slip.slipok_api_key": encryptedKey,
-        "slip.provider": "slipok",
+        "slip.slipok_api_key": encryptedSlipOk,
+        "slip.easyslip_api_key": encryptedEasySlip,
+        "slip.receiver_name": receiverName,
+        "slip.max_age_days": Math.round(maxAgeDays),
       },
       user.id,
     );
@@ -183,13 +206,22 @@ export async function saveSlipSettingsAction(_prev: AdminResult, formData: FormD
       action: "settings.slip_verification_update",
       entityType: "system_settings",
       entityId: "slip",
-      after: { enabled, autoApprove, branchId, keyRotated: Boolean(apiKey) },
+      after: {
+        enabled,
+        autoApprove,
+        provider,
+        branchId,
+        receiverName,
+        maxAgeDays,
+        slipOkKeyRotated: Boolean(apiKey),
+        easySlipKeyRotated: Boolean(easySlipKey),
+      },
     });
     revalidatePath("/admin/payment-settings");
     revalidatePath("/admin/payments");
     return {
       success: enabled
-        ? "SlipOK verification settings saved. New slips will be verified automatically."
+        ? `${provider === "easyslip" ? "EasySlip" : "SlipOK"} verification saved. Uploaded slips are checked with the bank automatically.`
         : "Slip verification disabled. Slips will require manual review.",
     };
   } catch (error) {

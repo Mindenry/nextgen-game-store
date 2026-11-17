@@ -124,33 +124,52 @@ The E2E suite automates this (valid, invalid, replayed, mismatched amount, dupli
 Slip uploads are unique by image hash, so the same slip cannot be reused on another payment even
 before a provider is configured.
 
-## 3.1 Automatic slip verification (SlipOK)
+## 3.1 Automatic slip verification (SlipOK / EasySlip)
 
-The store implements a real bank-side slip verification adapter for
-[SlipOK](https://slipok.com/api/). Configure it in **Admin → Payment Settings → ตรวจสลิปอัตโนมัติ
-(SlipOK)**:
+This is the fully automatic path: the customer uploads a slip, the server asks a verification
+provider to look the transfer up at the bank, and only a verified transfer is credited.
 
-| Field | What to enter |
+Configure it in **Admin → Payment Settings → ตรวจสลิปอัตโนมัติ**. Choose one provider:
+
+### EasySlip (recommended for receiver-name checks)
+
+[EasySlip](https://easyslip.com) returns the slip amount, transaction reference, sender, the
+**receiver account name** and a duplicate flag. Free trial: 7 days; then plans start around
+฿99/month for 250 slips.
+
+| Field | Value |
 |---|---|
-| Branch ID | The branch ID shown in SlipOK |
-| API Key | The API key from SlipOK (encrypted at rest with `ENCRYPTION_KEY`) |
-| เติมเงินอัตโนมัติ | Enable only after testing in SlipOK's plan/sandbox |
+| ผู้ให้บริการตรวจสลิป | EasySlip |
+| API Key | Key from the EasySlip dashboard (encrypted at rest with ENCRYPTION_KEY) |
+| ชื่อบัญชีผู้รับ | The name exactly as it appears on the receiving bank account |
 
-When enabled, every slip upload is sent to SlipOK with `log=true` and the expected amount. SlipOK:
+On every slip upload the server posts the image to
+`POST https://api.easyslip.com/v2/verify/bank` with `checkDuplicate: true` and `matchAmount`.
+The wallet is credited only when **all** of these pass:
 
-- reads the slip QR and verifies it is a real bank transaction,
-- checks the slip is not already used (`1012`),
-- checks the receiving account against the branch registered with SlipOK (`1014`),
-- checks the amount (`1013`).
+1. the bank recognises the slip (a real transaction, not a screenshot of a website),
+2. the slip is not a duplicate,
+3. the amount equals the payment amount to the satang,
+4. the receiver account name matches the configured name (titles like นาย/นางสาว/Mr. and spacing
+   are ignored; a different person or company is rejected),
+5. the slip is not older than `slip.max_age_days` (default 30).
 
-Only a fully verified response credits the wallet. The transaction reference is stored as the
-payment's `provider_ref` (unique), the slip hash is unique, and the payment row is locked, so a
-replayed or duplicated slip cannot credit twice. Errors, bank delays (`1010`) and unconfigured
-credentials leave the payment in `MANUAL_REVIEW` and notify staff — the system never pretends a
-slip is genuine.
+### SlipOK
 
-Without SlipOK credentials, automatic verification is impossible; use manual review against the
-bank statement. Do not enable "auto approve" unless SlipOK is configured.
+[SlipOK](https://slipok.com/api/) verifies the slip and the receiving account registered to the
+branch. Fields: **Branch ID** + **API Key**. Codes: 1012 reused slip, 1013 amount mismatch,
+1014 wrong receiver, 1010 bank delay.
+
+### Rules that apply to both providers
+
+- Only a verified response credits the wallet; `autoApprove` can be turned off to require staff
+  approval after verification.
+- The transaction reference is stored on the payment, the slip hash and bank reference are unique,
+  and the payment row is locked, so a replayed or duplicated slip cannot credit twice.
+- Errors, provider outages, bank delays and missing credentials leave the payment in
+  `MANUAL_REVIEW` and notify staff. The system never pretends a slip is genuine.
+- If no provider is configured (or the trial ends), the free options are bank statement
+  reconciliation (3.2.2) or manual review. Do not enable auto-approve without a provider.
 
 ## 3.2 Free self-hosted slip pre-check
 

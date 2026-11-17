@@ -33,6 +33,9 @@ export const DEFAULT_SETTINGS: Record<string, unknown> = {
   "slip.enabled": false,
   "slip.slipok_branch_id": "",
   "slip.slipok_api_key": "",
+  "slip.easyslip_api_key": "",
+  "slip.receiver_name": "",
+  "slip.max_age_days": 30,
   "slip.auto_approve": true,
   "truemoney.phone": "0812345678",
   "footer.about":

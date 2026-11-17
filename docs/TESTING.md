@@ -30,10 +30,12 @@ other scripts that open `.data/pglite` while the dev server is running.
 | `rbac.test.ts` | customer denial, granted permissions, null-user safety |
 | `slipok.test.ts` | SlipOK success mapping, duplicate slip, amount mismatch, wrong receiver, bank delay, auth failure |
 | `bank-statement.test.ts` | Thai/English CSV headers, Buddhist year, quoted commas, thousands separators, debit columns, stable fingerprints, unreadable files |
+| `easyslip.test.ts` | EasySlip response mapping, duplicate/amount/pending/auth cases, Thai+English receiver-name matching |
+| `easyslip-verify.test.ts` | full verification pipeline with a stubbed provider: verified, wrong receiver, duplicate, amount mismatch, old slip, missing configuration |
 | `slip-payload.test.ts` | standard bank slip Mini QR, TrueMoney slip, CRC tamper, non-slip payload, duplicate CRC |
 | `slip-qr.test.ts` | server-side QR decoding from PNG for standard and TrueMoney slips |
 
-Results (this machine): **9 files, 41 tests passing**.
+Results (this machine): **11 files, 56 tests passing**.
 
 ## E2E tests (Playwright)
 

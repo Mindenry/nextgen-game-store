@@ -252,7 +252,7 @@ export default async function PayPage({
                       <div className="flex gap-2">
                         <Info className="mt-0.5 size-3.5 shrink-0" />
                         <p>
-                          "Upload your payment slip, and the system checks it against the bank statement imported by the shop. Nothing is credited until an incoming transfer is actually found."
+                          "Upload your payment slip. It is checked against the bank (verification provider) and/or the shop's imported bank statement. Nothing is credited until a real transfer is confirmed."
                         </p>
                       </div>
                     </Alert>
@@ -305,8 +305,8 @@ export default async function PayPage({
                     </div>
                     <p className="mt-2 text-[10px] leading-relaxed text-muted">
                       {th
-                        ? "ระบบจะเครดิตเงินเมื่อตรวจพบเงินเข้าจริงใน statement ธนาคารของร้าน (ยอดตรง + เวลาตรงกัน) หากยังไม่พบ ระบบจะเก็บสลิปไว้ให้เจ้าหน้าที่ตรวจ"
-                        : "Your wallet is credited only when the shop's imported bank statement contains a matching incoming transfer (same amount, near the same time). Until then the slip stays with staff for review."}
+                        ? "ระบบตรวจสลิปกับผู้ให้บริการธนาคาร (ถ้าตั้งค่าไว้) และ/หรือ statement ธนาคารของร้าน — เครดิตเฉพาะเมื่อตรวจพบการโอนจริง ยอดตรง และบัญชีผู้รับถูกต้อง หากตรวจไม่ผ่านจะรอเจ้าหน้าที่ตรวจ"
+                        : "Your slip is checked with the bank verification provider (when configured) and/or the shop's imported bank statement. Your wallet is credited only when the transfer is real, the amount matches, and the receiver account is correct. Otherwise it stays with staff."}
                     </p>
                   </>
                 )}

@@ -170,45 +170,95 @@ export default async function PaymentSettingsPage() {
 
           <Card className="p-5">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <ShieldCheck className="size-4 text-success" /> ตรวจสลิปอัตโนมัติ (SlipOK)
+              <ShieldCheck className="size-4 text-success" /> ตรวจสลิปอัตโนมัติ (SlipOK / EasySlip)
             </h2>
             <p className="mt-1 text-[11px] leading-relaxed text-muted">
-              ใช้บริการตรวจสลิปของธนาคารผ่าน SlipOK เพื่อตรวจว่า <strong className="text-fg">สลิปจริง ไม่ซ้ำ ยอดตรง และบัญชีผู้รับถูกต้อง</strong>.
-              ระบบจะเติมเงินอัตโนมัติเฉพาะเมื่อ SlipOK ยืนยันสำเร็จเท่านั้น
-              หากยังไม่ตั้งค่า ลูกค้าอัปโหลดสลิปได้ แต่แอดมินต้องตรวจกับ statement เอง
+              ระบบจะส่งรูปสลิปไปตรวจกับผู้ให้บริการ แล้วตรวจ <strong className="text-fg">สลิปจริง · ไม่ซ้ำ · ยอดตรง · บัญชีผู้รับตรงชื่อ</strong>{" "}
+              ก่อนเติมเงินอัตโนมัติ ถ้าตรวจไม่ผ่าน เงินจะไม่เข้าและสลิปจะถูกส่งให้แอดมินตรวจ
             </p>
-            <p className="mt-2 text-[10px] text-muted">
-              สมัคร/ดูเอกสาร:{" "}
-              <a href="https://slipok.com/api/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
-                slipok.com/api <ExternalLink className="size-3" />
-              </a>{" "}
-              — ต้องมี Branch ID และ API Key จาก SlipOK
-            </p>
+            <div className="mt-2 space-y-1 text-[10px] text-muted">
+              <p>
+                EasySlip:{" "}
+                <a href="https://easyslip.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
+                  ทดลองฟรี 7 วัน <ExternalLink className="size-3" />
+                </a>{" "}
+                แล้วเริ่ม 99 บาท/เดือน (250 สลิป)
+              </p>
+              <p>
+                SlipOK:{" "}
+                <a href="https://slipok.com/api/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
+                  slipok.com/api <ExternalLink className="size-3" />
+                </a>{" "}
+                (Branch ID + API Key)
+              </p>
+            </div>
 
             <div className="mt-4">
               <AdminActionForm action={saveSlipSettingsAction} submitLabel="บันทึกการตรวจสลิป">
                 <label className="flex items-center gap-2 rounded-xl border border-border bg-surface-2/50 p-3 text-[11px] font-medium text-fg-soft">
                   <input type="checkbox" name="slipEnabled" defaultChecked={slipConfig.enabled} className="accent-[var(--primary)]" />
-                  เปิดตรวจสลิปอัตโนมัติผ่าน SlipOK
+                  เปิดตรวจสลิปอัตโนมัติ
                 </label>
+
                 <div className="mt-3">
-                  <label className="mb-1 block text-[11px] font-semibold text-fg-soft">SlipOK Branch ID</label>
-                  <Input name="branchId" defaultValue={slipConfig.branchId} placeholder="Branch ID จาก SlipOK" />
+                  <label className="mb-1 block text-[11px] font-semibold text-fg-soft">ผู้ให้บริการตรวจสลิป</label>
+                  <Select name="slipProvider" defaultValue={slipConfig.provider}>
+                    <option value="slipok">SlipOK (ตรวจบัญชีผู้รับผ่าน branch)</option>
+                    <option value="easyslip">EasySlip (ตรวจชื่อบัญชีผู้รับบนสลิป)</option>
+                  </Select>
                 </div>
+
+                <div className="mt-3 rounded-xl border border-border p-3">
+                  <p className="text-[11px] font-semibold text-fg-soft">SlipOK</p>
+                  <div className="mt-2">
+                    <label className="mb-1 block text-[10px] font-semibold text-fg-soft">Branch ID</label>
+                    <Input name="branchId" defaultValue={slipConfig.branchId} placeholder="Branch ID จาก SlipOK" />
+                  </div>
+                  <div className="mt-2">
+                    <label className="mb-1 block text-[10px] font-semibold text-fg-soft">
+                      API Key {slipConfig.hasApiKey ? <span className="text-success">(ตั้งค่าแล้ว — ปล่อยว่างเพื่อคงเดิม)</span> : null}
+                    </label>
+                    <Input name="apiKey" type="password" autoComplete="new-password" placeholder={slipConfig.hasApiKey ? "•••••••• (ไม่แสดงคีย์)" : "วาง API Key ที่นี่"} />
+                  </div>
+                </div>
+
+                <div className="mt-3 rounded-xl border border-border p-3">
+                  <p className="text-[11px] font-semibold text-fg-soft">EasySlip</p>
+                  <div className="mt-2">
+                    <label className="mb-1 block text-[10px] font-semibold text-fg-soft">
+                      API Key {slipConfig.hasEasySlipKey ? <span className="text-success">(ตั้งค่าแล้ว — ปล่อยว่างเพื่อคงเดิม)</span> : null}
+                    </label>
+                    <Input name="easySlipKey" type="password" autoComplete="new-password" placeholder={slipConfig.hasEasySlipKey ? "•••••••• (ไม่แสดงคีย์)" : "วาง API Key จาก EasySlip"} />
+                  </div>
+                  <div className="mt-2">
+                    <label className="mb-1 block text-[10px] font-semibold text-fg-soft">
+                      ชื่อบัญชีผู้รับ (ต้องตรงกับชื่อในบัญชีธนาคาร)
+                    </label>
+                    <Input
+                      name="slipReceiverName"
+                      defaultValue={slipConfig.receiverName}
+                      placeholder="เช่น นาย สมชาย ใจดี หรือ NEXTGEN GAME STORE"
+                    />
+                    <p className="mt-1 text-[10px] text-muted">
+                      EasySlip ส่งชื่อบัญชีผู้รับกลับมา ระบบจะเทียบกับชื่อนี้ (ตัดคำนำหน้า/ช่องว่างให้) ถ้าไม่ตรงจะไม่เติมเงิน
+                    </p>
+                  </div>
+                </div>
+
                 <div className="mt-3">
-                  <label className="mb-1 block text-[11px] font-semibold text-fg-soft">
-                    API Key {slipConfig.hasApiKey ? <span className="text-success">(ตั้งค่าแล้ว — ปล่อยว่างเพื่อคงเดิม)</span> : null}
-                  </label>
-                  <Input name="apiKey" type="password" autoComplete="new-password" placeholder={slipConfig.hasApiKey ? "•••••••• (ไม่แสดงคีย์)" : "วาง API Key ที่นี่"} />
-                  <p className="mt-1 text-[10px] text-muted">เข้ารหัส AES-256-GCM ก่อนบันทึก และไม่แสดงกลับมาที่หน้าเว็บ</p>
+                  <label className="mb-1 block text-[11px] font-semibold text-fg-soft">อายุสลิปสูงสุด (วัน)</label>
+                  <Input type="number" name="maxAgeDays" min={1} max={365} defaultValue={Number(settings["slip.max_age_days"] ?? 30)} />
+                  <p className="mt-1 text-[10px] text-muted">สลิปที่เก่ากว่านี้จะถูกปฏิเสธเพื่อกันการนำสลิปเก่ามาใช้ซ้ำ</p>
                 </div>
+
                 <label className="mt-3 flex items-start gap-2 text-[11px] text-fg-soft">
                   <input type="checkbox" name="autoApprove" defaultChecked={slipConfig.autoApprove} className="mt-0.5 accent-[var(--primary)]" />
-                  <span>เติมเงินอัตโนมัติเมื่อ SlipOK ยืนยันสำเร็จ (ยอดตรง + บัญชีผู้รับถูกต้อง + สลิปไม่ซ้ำ)</span>
+                  <span>เติมเงินอัตโนมัติเมื่อผู้ให้บริการยืนยันสำเร็จ (ยอดตรง + บัญชีผู้รับตรง + สลิปไม่ซ้ำ)</span>
                 </label>
+
                 <div className="mt-3 rounded-xl border border-primary/25 bg-primary/5 p-3 text-[11px] leading-relaxed text-fg-soft">
-                  <strong className="text-primary">ตรวจเงินเข้าจริง (แนะนำ):</strong> สลิปอย่างเดียวไม่สามารถยืนยันได้ฟรี —
-                  ระบบจะเครดิตก็ต่อเมื่อมีรายการเงินเข้าจริงใน statement ธนาคารของร้าน
+                  <strong className="text-primary">ทางเลือกฟรีตลอด:</strong> ไม่ต้องใช้ผู้ให้บริการก็ได้ —
+                  นำเข้า statement ธนาคารของร้านแล้วระบบจับคู่เงินเข้าจริงให้
                   <Link href="/admin/bank-reconciliation" className="ml-1 font-semibold text-primary hover:underline">
                     ไปที่ Bank Reconciliation →
                   </Link>

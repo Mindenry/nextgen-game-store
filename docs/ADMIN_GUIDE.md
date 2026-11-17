@@ -51,11 +51,14 @@ and every action is re-checked on the server.
 - **Free self-hosted pre-check:** the server decodes the Mini QR on the slip, validates its CRC and
   extracts the bank + transfer reference. A reused reference is rejected and the reference is shown
   to staff. This is a pre-check only — it cannot prove the transfer exists, so it stays in manual review.
-- **SlipOK** is implemented for real bank-side verification. Add the Branch ID + API key under
-  Payment Settings, enable verification and auto-approval, then test with a real ฿1 transfer.
-- SlipOK confirms: real bank transaction, receiving account, amount and whether the slip was
+- **SlipOK or EasySlip** provide real bank-side verification. Add the credentials under Payment
+  Settings, choose the provider, enter the receiving account name (EasySlip) and enable
+  auto-approval, then test with a real ฿1 transfer.
+- EasySlip also returns the **receiver account name**; the system compares it with the configured
+  name and refuses to credit a slip paid to somebody else.
+- The provider confirms: real bank transaction, amount, receiving account and whether the slip was
   already used. Only a successful response credits the wallet.
-- Without SlipOK, every slip stays in **MANUAL_REVIEW** until a staff member checks the bank
+- Without a provider, every slip stays in **MANUAL_REVIEW** until a staff member checks the bank
   statement. The system never auto-credits from an image alone.
 
 ### TrueMoney Angpao

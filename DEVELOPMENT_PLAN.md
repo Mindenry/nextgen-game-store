@@ -133,8 +133,8 @@ Search suggestions, recently viewed, favourites, order tracking, responsive navi
 bottom nav, confirmation dialogs, loading feedback, error recovery, helpful empty states.
 
 ### Phase 18 — Testing & QA ✅
-- Vitest: 41 unit tests across money, coupons, PromptPay CRC, slip Mini-QR parsing/decoding, bank
-  statement parsing,
+- Vitest: 56 unit tests across money, coupons, PromptPay CRC, slip Mini-QR parsing/decoding, bank
+  statement parsing, EasySlip mapping and receiver-name checks,
   crypto, SlipOK mapping and RBAC — **passing**.
 - Playwright: 19 E2E tests — storefront/search/responsive, wallet checkout + auto-delivery, bank
   reconciliation import/matching,
