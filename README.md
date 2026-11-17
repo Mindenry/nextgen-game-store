@@ -29,6 +29,17 @@ The seed prints the generated admin password. Defaults:
 | Super Admin | `admin@nextgen.local` | printed by `npm run env:init` (or `BOOTSTRAP_ADMIN_PASSWORD`) |
 | Demo customer | `demo@nextgen.local` | `Demo1234!` |
 
+### Create an extra customer account (0 balance)
+
+```bash
+# stop the dev server first (PGlite is single-process)
+node scripts/create-account.mjs --email=player1@nextgen.local \
+  --password='Player1234!' --name='Player One' --username=player1
+```
+
+The account is created verified (`email_verified_at = now()`) with role `customer` and a wallet at
+**฿0.00** — no credit is applied. `--username` is optional; `--email` and `--password` are required.
+
 Demo rows exist only when `SEED_DEMO=true` and `NODE_ENV !== production`. Delete or replace them
 before going live.
 
