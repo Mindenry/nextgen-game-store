@@ -144,6 +144,19 @@ export default async function PaymentSettingsPage() {
                   </div>
                 </div>
                 <div className="mt-3">
+                  <label className="mb-1 block text-[11px] font-semibold text-fg-soft">TrueMoney เบอร์รับซองอั่งเปา</label>
+                  <Input
+                    name="truemoneyPhone"
+                    defaultValue={String(settings["truemoney.phone"] ?? "0812345678")}
+                    placeholder="0812345678"
+                    inputMode="tel"
+                  />
+                  <p className="mt-1 text-[10px] text-muted">
+                    ใช้เป็นเบอร์รับซองอั่งเปา TrueMoney (ต้องเป็นเบอร์ที่เปิดรับซองได้) —
+                    ระบบจะไม่ redeem อัตโนมัติ เจ้าหน้าที่ต้องเปิดซองในแอป TrueMoney
+                  </p>
+                </div>
+                <div className="mt-3">
                   <label className="mb-1 block text-[11px] font-semibold text-fg-soft">ช่องทางที่ใช้งาน</label>
                   <Select name="activeProvider" defaultValue={str("payment.active_provider")}>
                     {enabledProviders.map((provider) => (

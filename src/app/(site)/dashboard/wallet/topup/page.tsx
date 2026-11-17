@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { ArrowLeft, Info, ShieldCheck } from "lucide-react";
 import { requireUser } from "@/lib/auth";
+import { many } from "@/lib/db";
 import { getWallet } from "@/lib/wallet";
-import { getEnabledProvider, getPromptPayConfig, getSettings } from "@/lib/settings";
+import { getPromptPayConfig } from "@/lib/settings";
 import { formatTHB } from "@/lib/money";
 import { Alert, Card } from "@/components/ui";
 import { DepositForm } from "@/components/deposit-form";
@@ -11,16 +12,13 @@ export const metadata = { title: "Top up wallet" };
 
 export default async function WalletTopupPage() {
   const user = await requireUser("/dashboard/wallet/topup");
-  const [wallet, promptConfig, settings] = await Promise.all([
+  const [wallet, promptConfig] = await Promise.all([
     getWallet(user.id),
     getPromptPayConfig(),
-    getSettings(),
   ]);
-  const active = await getEnabledProvider(String(settings["payment.active_provider"] ?? "promptpay_qr"));
-  const providers = [active, { id: "manual", name: "Manual Bank Transfer", kind: "manual", is_enabled: true }]
-    .filter((provider): provider is NonNullable<typeof provider> => Boolean(provider?.is_enabled))
-    .filter((provider, index, all) => all.findIndex((item) => item.id === provider.id) === index)
-    .map((provider) => ({ id: provider.id, name: provider.name, kind: provider.kind }));
+  const providers = await many<{ id: string; name: string; kind: string }>(
+    "select id, name, kind from payment_providers where is_enabled order by sort_order",
+  );
 
   return (
     <div className="space-y-6">

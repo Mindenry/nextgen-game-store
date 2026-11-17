@@ -133,12 +133,12 @@ Search suggestions, recently viewed, favourites, order tracking, responsive navi
 bottom nav, confirmation dialogs, loading feedback, error recovery, helpful empty states.
 
 ### Phase 18 — Testing & QA ✅
-- Vitest: 25 unit tests across money, coupons, PromptPay CRC, crypto, SlipOK response mapping and
-  RBAC — **passing**.
-- Playwright: 15 E2E tests — storefront/search/responsive, wallet checkout + auto-delivery,
+- Vitest: 34 unit tests across money, coupons, PromptPay CRC, slip Mini-QR parsing/decoding,
+  crypto, SlipOK mapping and RBAC — **passing**.
+- Playwright: 16 E2E tests — storefront/search/responsive, wallet checkout + auto-delivery,
   inventory replenishment, RBAC block, manual slip approval, webhook signature/replay/amount
-  mismatch, game top-up fulfilment, dedicated payment settings and all 23 admin modules —
-  **passing** (Chrome channel).
+  mismatch, game top-up fulfilment, dedicated payment settings, TrueMoney Angpao and all 23 admin
+  modules — **passing** (Chrome channel).
 - Production `next start` smoke: key routes return HTTP 200; login, theme toggle and admin
   client navigation verified.
 - Typecheck, ESLint, unit tests and production build pass.
@@ -158,7 +158,9 @@ code paths, setup guides and setup-required states are in place; see the checkli
 
 | Item | Status | Action |
 |---|---|---|
-| PromptPay automatic verification | Works when a signed webhook provider or SlipOK is configured | Obtain a provider webhook and/or a SlipOK Branch ID + API key. Otherwise manual slip verification. |
+| PromptPay automatic verification | Works when a signed webhook provider or SlipOK is configured | Obtain a provider webhook and/or a SlipOK Branch ID + API key. Otherwise manual slip verification plus the free self-hosted Mini-QR pre-check. |
+| Free self-hosted slip check | Parses/validates slip Mini QR, CRC, bank + transfer reference and blocks reuse | It cannot prove the transfer/amount at the bank. Staff must confirm with the bank; use SlipOK/KBank for true auto-confirmation. |
+| TrueMoney Angpao | Manual redemption to the shop phone 0812345678 with encrypted voucher link + unique code | Staff redeem in the official app. Automatic redemption requires an official TrueMoney merchant API; no OTP/session automation. |
 | KBank Open API | Adapter refuses to operate without credentials | Complete KBank merchant onboarding, add credentials, implement the approved request/response mapping. |
 | Social login | Code complete; buttons gated by Supabase provider availability | Follow `docs/OAUTH_SETUP.md`. |
 | Email delivery | Resend adapter + dev outbox | Set `RESEND_API_KEY` + verified sender. |

@@ -251,6 +251,13 @@ export async function savePaymentSettingsAction(_prev: AdminResult, formData: Fo
     const activeProvider = s(formData, "activeProvider") || "promptpay_qr";
     const provider = await one<{ is_enabled: boolean }>("select is_enabled from payment_providers where id = $1", [activeProvider]);
     if (!provider?.is_enabled) return { error: "The selected active provider is disabled." };
+    const truemoneyPhone = (
+      s(formData, "truemoneyPhone") ||
+      String((await getSettings())["truemoney.phone"] ?? "0812345678")
+    ).replace(/[^0-9]/g, "");
+    if (!/^0\d{9}$/.test(truemoneyPhone)) {
+      return { error: "TrueMoney phone must be a 10-digit Thai mobile number (e.g. 0812345678)." };
+    }
 
     await setSettings(
       {
@@ -260,9 +267,17 @@ export async function savePaymentSettingsAction(_prev: AdminResult, formData: Fo
         "payment.max_deposit": max,
         "payment.qr_expiry_minutes": expiry,
         "payment.active_provider": activeProvider,
+        "truemoney.phone": truemoneyPhone,
       },
       user.id,
     );
+    const truemoneyInstructions = `ส่งซองอั่งเปา TrueMoney มาที่เบอร์ ${truemoneyPhone} แล้ววางลิงก์ซองอั่งเปาในช่องด้านล่าง เจ้าหน้าที่จะ redeem และอนุมัติยอดให้`;
+    await run(
+      `update payment_providers set config = jsonb_set(coalesce(config, '{}'::jsonb), '{instructions}', to_jsonb($2::text)), updated_at = now()
+       where id = 'truemoney_angpao'`,
+      [truemoneyPhone, truemoneyInstructions],
+    );
+
     await audit({
       actorId: user.id,
       actorEmail: user.email,

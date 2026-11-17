@@ -48,12 +48,25 @@ and every action is re-checked on the server.
 ### Slip verification
 
 - Slip uploads are hashed; the same image cannot be reused on another payment.
+- **Free self-hosted pre-check:** the server decodes the Mini QR on the slip, validates its CRC and
+  extracts the bank + transfer reference. A reused reference is rejected and the reference is shown
+  to staff. This is a pre-check only — it cannot prove the transfer exists, so it stays in manual review.
 - **SlipOK** is implemented for real bank-side verification. Add the Branch ID + API key under
   Payment Settings, enable verification and auto-approval, then test with a real ฿1 transfer.
 - SlipOK confirms: real bank transaction, receiving account, amount and whether the slip was
   already used. Only a successful response credits the wallet.
 - Without SlipOK, every slip stays in **MANUAL_REVIEW** until a staff member checks the bank
   statement. The system never auto-credits from an image alone.
+
+### TrueMoney Angpao
+
+- The shop accepts TrueMoney Angpao vouchers to **0812345678** (editable under Payment Settings).
+- Customer selects **TrueMoney Angpao (Manual)**, sends the Angpao to the shop phone and pastes the
+  `gift.truemoney.com` voucher link.
+- The link is encrypted at rest and its voucher code is unique. Staff must redeem it in the
+  TrueMoney app first, then approve the payment. Approval credits the wallet.
+- Automatic redemption is intentionally not implemented: TrueMoney has no public unauthenticated
+  voucher API, and automating it with OTP/session access would breach the service terms.
 
 ### 1 THB test product
 

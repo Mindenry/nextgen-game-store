@@ -60,8 +60,9 @@ Full steps: [`docs/INSTALLATION.md`](docs/INSTALLATION.md) ·
 - **Wallet** — auditable double-entry-style ledger, idempotent deposits, refunds, admin
   adjustments, non-negative balances, reconciliation view.
 - **Payments** — EMVCo PromptPay QR, signed webhook verification, replay/duplicate/amount checks,
-  manual slip review with private evidence, **SlipOK bank-side slip verification**, duplicate-slip
-  hash protection, provider management, webhook log, expiry job.
+  manual slip review with private evidence, **free self-hosted slip Mini-QR parser**, **SlipOK
+  bank-side verification**, duplicate-slip/reference protection, **TrueMoney Angpao (manual
+  redemption to the shop phone)**, provider management, webhook log, expiry job.
 - **Delivery** — AES-256-GCM encrypted inventory, atomic allocation, manual delivery payloads,
   customer vault, notifications and audit logs.
 - **Game top-up** — admin-defined games, field schemas and packages; dynamic customer form;
@@ -74,11 +75,11 @@ Full steps: [`docs/INSTALLATION.md`](docs/INSTALLATION.md) ·
 ## Tests
 
 ```bash
-npm test                     # Vitest unit tests (25)
+npm test                     # Vitest unit tests (34)
 npm run typecheck
 npm run build
 
-# E2E (15 scenarios). Use installed Chrome, or install Playwright's Chromium first.
+# E2E (16 scenarios). Use installed Chrome, or install Playwright's Chromium first.
 npm run test:e2e:chrome
 # or:
 npx playwright install chromium-headless-shell && npm run test:e2e
@@ -111,7 +112,7 @@ See [`docs/TESTING.md`](docs/TESTING.md) for the scenario matrix.
 - [x] Game top-up workflow with dynamic fields
 - [x] Admin dashboard, RBAC, audit logs
 - [x] Migrations, RLS policies, reconciliation view
-- [x] Unit tests (25) + E2E tests (15), typecheck, lint, production build
+- [x] Unit tests (34) + E2E tests (16), typecheck, lint, production build
 - [x] Documentation for install, deploy, payments, OAuth, admin, database, security
 - [ ] Live provider credentials, bank approval and OAuth consent (owner-supplied)
 - [ ] Replace demo catalogue and demo accounts before go-live
@@ -121,3 +122,7 @@ See [`docs/TESTING.md`](docs/TESTING.md) for the scenario matrix.
 All branding, copy and UI in this repository are original. No assets, code, logos or branding
 from any reference store were copied. Demo product photography uses Unsplash images (replace
 with licensed store assets).
+
+Slip Mini-QR parsing logic/test vectors are adapted from open-source projects under MIT/Apache-2.0;
+see [NOTICE](NOTICE) for attribution. It is a structural pre-check and never claims bank
+confirmation by itself.

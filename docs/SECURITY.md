@@ -93,6 +93,10 @@ creation and top-up orders. Stale rows are pruned by the reconcile cron.
 - Max 5 MB; random filenames; path traversal blocked.
 - Slips are accessible only to their owner or staff with `payments.verify`.
 - Slip images are hashed (SHA-256); a hash can only belong to one payment, blocking reused slips.
+- The free self-hosted pre-check decodes the slip QR and stores the bank/transaction reference; the
+  reference is unique. This is **not** a bank confirmation and does not auto-credit.
+- TrueMoney voucher links are encrypted at rest and their voucher code is hashed/unique. Staff
+  redemption is manual; no OTP or TrueMoney session is stored.
 - When SlipOK is enabled, slip images are sent to SlipOK over HTTPS for bank verification; the API
   key is encrypted at rest and never rendered back to the UI. If this third-party data transfer is
   not acceptable, leave SlipOK disabled and verify manually.

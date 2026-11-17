@@ -152,6 +152,41 @@ slip is genuine.
 Without SlipOK credentials, automatic verification is impossible; use manual review against the
 bank statement. Do not enable "auto approve" unless SlipOK is configured.
 
+## 3.2 Free self-hosted slip pre-check
+
+The store also decodes the Mini QR printed on a slip **on your own server** (no paid API): it uses
+`sharp` + `jsQR`, parses the standard bank / TrueMoney Mini QR TLV, validates the CRC-16/CCITT-FALSE
+and extracts the sending bank + transaction reference. It then:
+
+- rejects a slip whose transfer reference was already used on another payment,
+- stores the parsed reference for staff,
+- keeps the payment in `MANUAL_REVIEW`.
+
+It deliberately does **not** auto-credit. The Mini QR contains only the bank and transaction
+reference — it does not contain a bank-verified amount or receiver. A fabricated QR can pass the
+structure check, so staff must confirm the reference with the bank statement (or use SlipOK/KBank
+for real confirmation). This is the same "pre-check before bank API" purpose documented by
+`promptparse-jvm`.
+
+Algorithm references and attribution are in the root `NOTICE` file.
+
+## 3.3 TrueMoney Angpao (manual, phone 0812345678)
+
+The `truemoney_angpao` provider accepts a voucher link from `gift.truemoney.com`:
+
+1. Customer creates a deposit and selects **TrueMoney Angpao (Manual)**.
+2. Customer sends/receives the Angpao to the configured shop phone and pastes the voucher link.
+3. The voucher code is hashed (unique), the full link is encrypted at rest, and staff are notified.
+4. Staff redeem the voucher in the official TrueMoney app, then approve the payment.
+5. Approval credits the wallet exactly once.
+
+The store does **not** automate voucher redemption. TrueMoney has no public unauthenticated API for
+this; automating it would require OTP/session access and would violate the service terms. If an
+official TrueMoney merchant API becomes available, add it as a provider adapter behind the same
+`attachVoucher`/approval flow.
+
+Configure the receiving phone in **Admin → Payment Settings → TrueMoney เบอร์รับซองอั่งเปา**.
+
 ## 4. KBank
 
 KBank merchant onboarding is required before any API call can work. The adapter intentionally

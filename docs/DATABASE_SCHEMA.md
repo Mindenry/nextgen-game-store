@@ -82,7 +82,7 @@ erDiagram
 | `coupons` | code unique, percentage/fixed, limits, window, restrictions JSON, first-purchase |
 | `coupon_redemptions` | unique (coupon, order); per-user limits counted from here |
 | `payment_providers` | id, kind, enabled, non-secret JSON config, encrypted webhook secret |
-| `payments` | unique reference, purpose, amount, status (`PENDING…REFUNDED`), QR payload, provider ref unique per provider, evidence, `slip_hash` (unique), `slip_verification` JSON, reviewer, expiry |
+| `payments` | unique reference, purpose, amount, status (`PENDING…REFUNDED`), QR payload, provider ref unique per provider, evidence, `slip_hash` (unique), `slip_bank_ref` (unique), `slip_verification` JSON, voucher hash/link, reviewer, expiry |
 | `payment_events` | raw webhook payload, signature validity, IP (audit/replay evidence) |
 
 ### Money

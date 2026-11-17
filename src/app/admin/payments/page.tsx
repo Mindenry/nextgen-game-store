@@ -4,6 +4,7 @@ import { requireStaff } from "@/lib/auth";
 import { can, PERMISSIONS } from "@/lib/auth/rbac";
 import { listPayments, listWebhookEvents } from "@/lib/admin";
 import { getFileUrl } from "@/lib/uploads";
+import { decryptSecret } from "@/lib/crypto";
 import { formatTHB } from "@/lib/money";
 import { formatDate } from "@/lib/utils";
 import { Badge, buttonClass, Card, Input, Pagination, Select, StatusPill, Table, Td, Th } from "@/components/ui";
@@ -36,7 +37,21 @@ export default async function AdminPaymentsPage({
   const reviewRows = await Promise.all(
     result.rows
       .filter((row) => row.status === "MANUAL_REVIEW")
-      .map(async (row) => ({ ...row, evidenceUrl: row.evidence_url ? await getFileUrl(row.evidence_url) : null })),
+      .map(async (row) => {
+        let voucherUrl: string | null = null;
+        if (row.voucher_url_encrypted) {
+          try {
+            voucherUrl = JSON.parse(decryptSecret(row.voucher_url_encrypted)).input;
+          } catch {
+            voucherUrl = null;
+          }
+        }
+        return {
+          ...row,
+          evidenceUrl: row.evidence_url ? await getFileUrl(row.evidence_url) : null,
+          voucherUrl,
+        };
+      }),
   );
 
   return (
@@ -124,9 +139,19 @@ export default async function AdminPaymentsPage({
                       {row.slip_verification.transRef ? (
                         <span className="font-mono text-muted">Ref {String(row.slip_verification.transRef)}</span>
                       ) : null}
+                      {row.slip_bank_ref ? <span className="font-mono text-muted">ref {row.slip_bank_ref}</span> : null}
                       {row.slip_hash ? <span className="font-mono text-muted">hash {row.slip_hash.slice(0, 10)}?</span> : null}
                     </div>
                     <p className="mt-1 text-muted">{String(row.slip_verification.message ?? "")}</p>
+                  </div>
+                ) : null}
+                {row.voucherUrl ? (
+                  <div className="mt-2 rounded-lg border border-primary/20 bg-primary/5 p-2 text-[10px]">
+                    <p className="font-semibold text-fg">TrueMoney Angpao voucher</p>
+                    <a href={row.voucherUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 font-semibold text-primary hover:underline">
+                      <ExternalLink className="size-3" /> Open voucher / redeem in TrueMoney
+                    </a>
+                    <p className="mt-1 text-muted">Redeem to the shop phone first, then approve. The system does not auto-redeem.</p>
                   </div>
                 ) : null}
                 {canVerify ? (

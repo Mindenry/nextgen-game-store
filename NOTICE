@@ -1,0 +1,26 @@
+NEXTGEN GAME STORE
+Copyright (c) 2026 NEXTGEN GAME STORE
+
+This product includes logic and test vectors derived from the following
+open-source projects:
+
+1. promptparse
+   https://github.com/maythiwat/promptparse
+   MIT License, Copyright (c) Maythiwat Chomchuen
+   Used for PromptPay/EMVCo TLV behaviour and slip Mini QR test vectors.
+
+2. promptparse-jvm
+   https://github.com/sunJirapath/promptparse-jvm
+   Apache License 2.0
+   Used as the specification reference for standard/TrueMoney slip Mini QR
+   parsing and CRC handling (see docs/SPEC_NOTES.md in that project).
+
+3. thai-qr-payment
+   https://github.com/uunw/thai-qr-payment
+   MIT License, Copyright (c) 2026 uunw
+   Used for cross-checking standard and TrueMoney slip vectors.
+
+The implementation in src/lib/slip-payload.ts is a focused TypeScript port of
+the publicly documented Mini QR format. It performs a structural pre-check
+only. It does not confirm that a transfer exists at a bank, and it is not
+affiliated with the Bank of Thailand or any bank.

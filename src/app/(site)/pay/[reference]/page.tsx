@@ -15,13 +15,14 @@ import { requireUser } from "@/lib/auth";
 import { can, PERMISSIONS } from "@/lib/auth/rbac";
 import { one } from "@/lib/db";
 import { getPaymentByReference, qrDataUrl, syncPaymentStatus, type PaymentStatus } from "@/lib/payments";
-import { getEnabledProvider } from "@/lib/settings";
+import { getEnabledProvider, getSettings } from "@/lib/settings";
 import { getFileUrl } from "@/lib/uploads";
 import { env } from "@/lib/env";
 import { formatTHB } from "@/lib/money";
 import { Alert, buttonClass, Card, Separator, StatusPill } from "@/components/ui";
 import { CopyButton, PaymentStatusWatcher } from "@/components/pay-client";
 import { SlipUploader } from "@/components/slip-uploader";
+import { TruemoneyVoucherForm } from "@/components/truemoney-voucher-form";
 import { formatDate } from "@/lib/utils";
 
 export const metadata = { title: "Payment" };
@@ -35,7 +36,7 @@ export default async function PayPage({ params }: { params: Promise<{ reference:
   if (!isOwner && !can(user, PERMISSIONS.paymentsView)) notFound();
 
   const status = (await syncPaymentStatus(reference)) ?? payment.status;
-  const [provider, order, evidenceUrl] = await Promise.all([
+  const [provider, order, evidenceUrl, settings] = await Promise.all([
     getEnabledProvider(payment.provider_id),
     payment.order_id
       ? one<{ order_number: string; status: string }>("select order_number, status from orders where id = $1", [
@@ -43,7 +44,9 @@ export default async function PayPage({ params }: { params: Promise<{ reference:
         ])
       : Promise.resolve(null),
     payment.evidence_url ? getFileUrl(payment.evidence_url) : Promise.resolve(null),
+    getSettings(),
   ]);
+  const truemoneyPhone = String(settings["truemoney.phone"] ?? "0812345678");
 
   const qr = payment.qr_payload ? await qrDataUrl(payment.qr_payload) : null;
   const autoVerify =
@@ -230,25 +233,44 @@ export default async function PayPage({ params }: { params: Promise<{ reference:
               </div>
 
               <div className="border-t border-border bg-surface-2/40 p-6">
-                <h3 className="text-sm font-semibold">Already paid? Submit your evidence</h3>
-                <p className="mt-1 text-[11px] text-muted">
-                  Slips are stored privately. Only you and authorised finance staff can view them.
-                </p>
-                {evidenceUrl ? (
-                  <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3">
-                    <p className="text-xs text-fg-soft">Slip attached — awaiting review</p>
-                    <a href={evidenceUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] font-semibold text-primary hover:underline">
-                      View
-                    </a>
-                  </div>
-                ) : null}
-                <div className="mt-3">
-                  <SlipUploader reference={payment.reference} />
-                </div>
-                <p className="mt-2 text-[10px] leading-relaxed text-muted">
-                  Uploading a slip does not credit your wallet automatically. Finance staff verify the amount, account
-                  and reference against the bank statement.
-                </p>
+                {provider?.id === "truemoney_angpao" ? (
+                  <>
+                    <h3 className="text-sm font-semibold">TrueMoney Angpao</h3>
+                    <p className="mt-1 text-[11px] text-muted">
+                      ส่งซองอั่งเปามาที่เบอร์ {truemoneyPhone} แล้ววางลิงก์ซอง เจ้าหน้าที่จะ redeem และอนุมัติยอดให้
+                    </p>
+                    {payment.voucher_hash ? (
+                      <p className="mt-3 rounded-lg border border-border bg-surface p-2.5 text-[11px] text-fg-soft">
+                        ส่งลิงก์ซองแล้ว — รอเจ้าหน้าที่เปิดซองและอนุมัติ
+                      </p>
+                    ) : null}
+                    <div className="mt-3">
+                      <TruemoneyVoucherForm reference={payment.reference} phone={truemoneyPhone} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-sm font-semibold">Already paid? Submit your evidence</h3>
+                    <p className="mt-1 text-[11px] text-muted">
+                      Slips are stored privately. Only you and authorised finance staff can view them.
+                    </p>
+                    {evidenceUrl ? (
+                      <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3">
+                        <p className="text-xs text-fg-soft">Slip attached — awaiting review</p>
+                        <a href={evidenceUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] font-semibold text-primary hover:underline">
+                          View
+                        </a>
+                      </div>
+                    ) : null}
+                    <div className="mt-3">
+                      <SlipUploader reference={payment.reference} />
+                    </div>
+                    <p className="mt-2 text-[10px] leading-relaxed text-muted">
+                      Uploading a slip does not credit your wallet automatically. Finance staff verify the amount, account
+                      and reference against the bank statement.
+                    </p>
+                  </>
+                )}
               </div>
             </Card>
           )}

@@ -3,7 +3,7 @@ import { ArrowDownLeft, ArrowUpRight, CreditCard, ReceiptText, Wallet } from "lu
 import { requireUser } from "@/lib/auth";
 import { getWallet, listWalletTransactions, walletStats } from "@/lib/wallet";
 import { many } from "@/lib/db";
-import { getPromptPayConfig, getEnabledProvider, getSettings } from "@/lib/settings";
+import { getPromptPayConfig } from "@/lib/settings";
 import { formatTHB } from "@/lib/money";
 import { formatDate } from "@/lib/utils";
 import { buttonClass, Card, EmptyState, Stat, StatusPill, Table, Td, Th } from "@/components/ui";
@@ -13,7 +13,7 @@ export const metadata = { title: "My wallet" };
 
 export default async function WalletPage() {
   const user = await requireUser("/dashboard/wallet");
-  const [wallet, stats, transactions, deposits, settings, promptConfig] = await Promise.all([
+  const [wallet, stats, transactions, deposits, promptConfig] = await Promise.all([
     getWallet(user.id),
     walletStats(user.id),
     listWalletTransactions(user.id, 20),
@@ -21,20 +21,11 @@ export default async function WalletPage() {
       "select reference, amount, status, created_at, provider_id from payments where user_id = $1 and purpose = 'wallet_deposit' order by created_at desc limit 10",
       [user.id],
     ),
-    getSettings(),
     getPromptPayConfig(),
   ]);
-  const activeProvider = await getEnabledProvider(String(settings["payment.active_provider"] ?? "promptpay_qr"));
-  const providers = [
-    activeProvider && activeProvider.is_enabled
-      ? { id: activeProvider.id, name: activeProvider.name, kind: activeProvider.kind }
-      : null,
-    { id: "manual", name: "Manual Bank Transfer", kind: "manual" },
-  ].filter((value, index, self) => value && self.findIndex((item) => item?.id === value.id) === index) as {
-    id: string;
-    name: string;
-    kind: string;
-  }[];
+  const providers = await many<{ id: string; name: string; kind: string }>(
+    "select id, name, kind from payment_providers where is_enabled order by sort_order",
+  );
 
   return (
     <div className="space-y-6">

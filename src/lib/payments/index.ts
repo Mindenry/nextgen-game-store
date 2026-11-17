@@ -5,6 +5,9 @@ import { decryptSecret, hmacSha256, safeEqualHex } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { getEnabledProvider, getPromptPayConfig, getSettings } from "@/lib/settings";
 import { getSlipConfig, verifySlipImage } from "@/lib/slip-verification";
+import { readUploadBytes } from "@/lib/uploads";
+import { decodeSlipQr } from "@/lib/slip-qr";
+import { parseSlipPayload, slipReference } from "@/lib/slip-payload";
 import type { SlipOutcome } from "@/lib/slipok";
 import { toMinor, toNumericString } from "@/lib/money";
 import { newPaymentReference } from "@/lib/payments/promptpay";
@@ -63,7 +66,10 @@ export type PaymentRow = {
   verification_source: string | null;
   evidence_url: string | null;
   slip_hash: string | null;
+  slip_bank_ref: string | null;
   slip_verification: Record<string, unknown> | null;
+  voucher_hash: string | null;
+  voucher_url_encrypted: string | null;
   expires_at: string;
   paid_at: string | null;
   metadata: Record<string, unknown>;
@@ -134,14 +140,16 @@ export async function createDeposit(input: {
     });
   } else if (provider.kind === "manual") {
     const conf = provider.config as Record<string, unknown>;
-    instructions = [
-      conf.bank_name ? `Bank: ${conf.bank_name}` : null,
-      conf.account_number ? `Account: ${conf.account_number}` : null,
-      conf.account_name ? `Account name: ${conf.account_name}` : null,
-      "Transfer the exact amount, then upload your slip for verification.",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    instructions =
+      String(conf.instructions ?? "").trim() ||
+      [
+        conf.bank_name ? `Bank: ${conf.bank_name}` : null,
+        conf.account_number ? `Account: ${conf.account_number}` : null,
+        conf.account_name ? `Account name: ${conf.account_name}` : null,
+        "Transfer the exact amount, then upload your slip for verification.",
+      ]
+        .filter(Boolean)
+        .join("\n");
   } else if (provider.kind === "webhook" || provider.kind === "bank") {
     throw new PaymentSetupError(
       `${provider.name} is not available for automated QR creation yet. Configure PromptPay QR or use Manual Bank Transfer.`,
@@ -346,7 +354,16 @@ export async function attachSlip(input: {
   userId: string;
   evidenceUrl: string;
   slipHash: string;
-}): Promise<{ ok: boolean; error?: string; verified?: boolean; credited?: boolean; message?: string }> {
+}): Promise<{
+  ok: boolean;
+  error?: string;
+  verified?: boolean;
+  credited?: boolean;
+  message?: string;
+  parsed?: boolean;
+  parsedReference?: string;
+  parsedBank?: string;
+}> {
   const payment = await one<PaymentRow>(
     "select * from payments where reference = $1 and user_id = $2",
     [input.reference, input.userId],
@@ -369,27 +386,86 @@ export async function attachSlip(input: {
     }
   }
 
+  // Free self-hosted pre-check: decode the Mini QR printed on the slip and
+  // extract the bank + transaction reference. This is NOT a bank confirmation.
+  let selfCheck: Record<string, unknown> | null = null;
+  let parsedReference: string | undefined;
+  let parsedBank: string | undefined;
+  let bankRef: string | null = null;
+  const upload = await readUploadBytes(input.evidenceUrl);
+  if (upload) {
+    const qrText = await decodeSlipQr(upload.bytes);
+    const parsed = qrText ? parseSlipPayload(qrText) : null;
+    if (parsed) {
+      parsedReference = slipReference(parsed);
+      parsedBank = parsed.kind === "standard" ? parsed.sendingBank : "TrueMoney";
+      bankRef = `${parsed.kind}:${parsedReference}`;
+      selfCheck = {
+        status: "parsed",
+        provider: "self",
+        kind: parsed.kind,
+        reference: parsedReference,
+        sendingBank: parsed.kind === "standard" ? parsed.sendingBank : null,
+        message:
+          parsed.kind === "standard"
+            ? "Slip Mini QR parsed. Bank confirmation is still required before credit."
+            : "TrueMoney slip QR parsed. Verify the transfer in the TrueMoney app before credit.",
+        checkedAt: new Date().toISOString(),
+      };
+      const duplicateRef = await one<{ reference: string }>(
+        "select reference from payments where slip_bank_ref = $1 and id <> $2",
+        [bankRef, payment.id],
+      );
+      if (duplicateRef) {
+        return {
+          ok: false,
+          error: `This slip transfer reference (${parsedReference}) has already been used for payment ${duplicateRef.reference}.`,
+        };
+      }
+    } else {
+      selfCheck = {
+        status: "invalid",
+        provider: "self",
+        message: "No valid slip Mini QR found in the image. Manual verification is required.",
+        checkedAt: new Date().toISOString(),
+      };
+    }
+  }
+
   await withTransaction(async (tx) => {
     await tx.query(
-      `update payments set evidence_url = $2, slip_hash = $3, slip_verification = null,
-         status = 'MANUAL_REVIEW', updated_at = now() where id = $1`,
-      [payment.id, input.evidenceUrl, input.slipHash || null],
+      `update payments set evidence_url = $2, slip_hash = $3, slip_bank_ref = $4,
+         slip_verification = $5::jsonb, status = 'MANUAL_REVIEW', updated_at = now() where id = $1`,
+      [
+        payment.id,
+        input.evidenceUrl,
+        input.slipHash || null,
+        bankRef,
+        JSON.stringify({ self: selfCheck }),
+      ],
     );
   });
+
+  const parsedMessage =
+    selfCheck?.status === "parsed"
+      ? `Slip QR detected (${parsedBank ?? ""} ${parsedReference ?? ""}). Staff must confirm the transfer with the bank before crediting.`
+      : "Slip uploaded. Staff must verify it manually before crediting.";
 
   const config = await getSlipConfig();
   if (!config.enabled) {
     await notifySlipReviewers(
       payment,
       "Payment slip awaiting review",
-      `${payment.reference} - ${Number(payment.amount).toFixed(2)} THB (manual verification)`,
+      `${payment.reference} - ${Number(payment.amount).toFixed(2)} THB (${parsedMessage})`,
     );
     return {
       ok: true,
       verified: false,
       credited: false,
-      message:
-        "Slip uploaded. Automatic verification is not configured, so staff must check it against the bank statement before funds are credited.",
+      parsed: selfCheck?.status === "parsed",
+      parsedReference,
+      parsedBank,
+      message: parsedMessage,
     };
   }
 
@@ -398,6 +474,9 @@ export async function attachSlip(input: {
     ok: true,
     verified: result.status === "verified",
     credited: result.credited,
+    parsed: selfCheck?.status === "parsed",
+    parsedReference,
+    parsedBank,
     message: result.credited
       ? "Slip verified by SlipOK and funds credited automatically."
       : result.message,
@@ -437,7 +516,9 @@ export async function verifySlipForPayment(paymentId: string): Promise<SlipVerif
     evidenceRef: payment.evidence_url,
     amountMinor: toMinor(payment.amount),
   });
-  const checked = { ...result, checkedAt: new Date().toISOString() };
+  const previous = (payment.slip_verification ?? {}) as Record<string, unknown>;
+  const selfCheck = previous.self ?? null;
+  const checked = { ...result, checkedAt: new Date().toISOString(), self: selfCheck };
   await one(
     "update payments set slip_verification = $2::jsonb, updated_at = now() where id = $1 returning id",
     [payment.id, JSON.stringify(checked)],
@@ -500,8 +581,8 @@ export async function approveManualPayment(input: {
 }): Promise<void> {
   const payment = await one<PaymentRow>("select * from payments where id = $1", [input.paymentId]);
   if (!payment) throw new PaymentConflictError("Payment not found.");
-  if (!payment.evidence_url) {
-    throw new PaymentConflictError("No payment evidence is attached. Ask the customer for a slip first.");
+  if (!payment.evidence_url && !payment.voucher_url_encrypted) {
+    throw new PaymentConflictError("No payment evidence is attached. Ask the customer for a slip or voucher first.");
   }
   await settlePayment({
     paymentId: payment.id,

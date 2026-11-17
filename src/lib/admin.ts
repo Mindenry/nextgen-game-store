@@ -221,11 +221,14 @@ export async function listPayments(input: { q?: string; status?: string; page?: 
     review_note: string | null;
     verification_source: string | null;
     slip_hash: string | null;
+    slip_bank_ref: string | null;
     slip_verification: Record<string, unknown> | null;
+    voucher_hash: string | null;
+    voucher_url_encrypted: string | null;
   }>(
     `select pm.id, pm.reference, pm.amount, pm.status, pm.purpose, pm.provider_id, pm.created_at,
             pm.expires_at, pm.evidence_url, p.email, p.display_name, o.order_number,
-            pm.reviewed_at, pm.review_note, pm.verification_source, pm.slip_hash, pm.slip_verification
+            pm.reviewed_at, pm.review_note, pm.verification_source, pm.slip_hash, pm.slip_bank_ref, pm.slip_verification, pm.voucher_hash, pm.voucher_url_encrypted
      from payments pm join profiles p on p.id = pm.user_id
      left join orders o on o.id = pm.order_id
      where ${where.join(" and ")} order by pm.created_at desc limit $${values.length - 1} offset $${values.length}`,

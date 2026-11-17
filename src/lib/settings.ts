@@ -34,6 +34,7 @@ export const DEFAULT_SETTINGS: Record<string, unknown> = {
   "slip.slipok_branch_id": "",
   "slip.slipok_api_key": "",
   "slip.auto_approve": true,
+  "truemoney.phone": "0812345678",
   "footer.about":
     "Digital goods delivered securely. Every order is tracked, every balance is backed by a ledger.",
   "legal.terms": "Terms and conditions placeholder.",
