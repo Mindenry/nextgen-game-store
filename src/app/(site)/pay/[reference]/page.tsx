@@ -56,7 +56,7 @@ export default async function PayPage({
   ]);
   const locale = await getLocale();
   const th = locale === "th";
-  const truemoneyPhone = String(settings["truemoney.phone"] ?? "0812345678");
+  const truemoneyPhone = String(settings["truemoney.phone"] ?? "");
 
   const qr = payment.qr_payload ? await qrDataUrl(payment.qr_payload) : null;
   const autoVerify =
@@ -252,7 +252,7 @@ export default async function PayPage({
                       <div className="flex gap-2">
                         <Info className="mt-0.5 size-3.5 shrink-0" />
                         <p>
-                          "Upload your payment slip. It is checked against the bank (verification provider) and/or the shop's imported bank statement. Nothing is credited until a real transfer is confirmed."
+                          {"Upload your payment slip. It is checked against the bank (verification provider) and/or the shop's imported bank statement. Nothing is credited until a real transfer is confirmed."}
                         </p>
                       </div>
                     </Alert>
@@ -269,7 +269,9 @@ export default async function PayPage({
                   <>
                     <h3 className="text-sm font-semibold">TrueMoney Angpao</h3>
                     <p className="mt-1 text-[11px] text-muted">
-                      ส่งซองอั่งเปามาที่เบอร์ {truemoneyPhone} แล้ววางลิงก์ซอง เจ้าหน้าที่จะ redeem และอนุมัติยอดให้
+                      {truemoneyPhone
+                        ? `ส่งซองอั่งเปามาที่เบอร์ ${truemoneyPhone} แล้ววางลิงก์ซอง เจ้าหน้าที่จะ redeem และอนุมัติยอดให้`
+                        : "ร้านยังไม่ได้ตั้งเบอร์รับซองอั่งเปา — สอบถามเจ้าหน้าที่ก่อนสร้างรายการ หรือเลือกช่องทาง PromptPay"}
                     </p>
                     {payment.voucher_hash ? (
                       <p className="mt-3 rounded-lg border border-border bg-surface p-2.5 text-[11px] text-fg-soft">

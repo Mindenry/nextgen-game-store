@@ -147,7 +147,7 @@ export default async function PaymentSettingsPage() {
                   <label className="mb-1 block text-[11px] font-semibold text-fg-soft">TrueMoney เบอร์รับซองอั่งเปา</label>
                   <Input
                     name="truemoneyPhone"
-                    defaultValue={String(settings["truemoney.phone"] ?? "0812345678")}
+                    defaultValue={String(settings["truemoney.phone"] ?? "")}
                     placeholder="0812345678"
                     inputMode="tel"
                   />

@@ -15,11 +15,11 @@ values (
   'รับซองอั่งเปา TrueMoney เข้าเบอร์ร้าน / ลูกค้าวางลิงก์ซอง แอดมินเป็นผู้ redeem ในแอป TrueMoney แล้วอนุมัติ',
   'manual',
   true,
-  '{"instructions":"ส่งซองอั่งเปา TrueMoney มาที่เบอร์ 0812345678 แล้ววางลิงก์ซองอั่งเปาในช่องด้านล่าง เจ้าหน้าที่จะ redeem และอนุมัติยอดให้"}'::jsonb,
+  '{"instructions":"ส่งซองอั่งเปา TrueMoney ตามเบอร์ที่ร้านตั้งค่าไว้ แล้ววางลิงก์ซองอั่งเปาในช่องด้านล่าง เจ้าหน้าที่จะ redeem และอนุมัติยอดให้"}'::jsonb,
   5
 )
 on conflict (id) do nothing;
 
 insert into system_settings (key, value) values
-  ('truemoney.phone', '"0812345678"'::jsonb)
+  ('truemoney.phone', '""'::jsonb)
 on conflict (key) do nothing;

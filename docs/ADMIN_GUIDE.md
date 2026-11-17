@@ -63,7 +63,7 @@ and every action is re-checked on the server.
 
 ### TrueMoney Angpao
 
-- The shop accepts TrueMoney Angpao vouchers to **0812345678** (editable under Payment Settings).
+- Set the shop's TrueMoney receiving phone under **Payment Settings → TrueMoney เบอร์รับซองอั่งเปา**. It ships empty so no personal number lives in the repository.
 - Customer selects **TrueMoney Angpao (Manual)**, sends the Angpao to the shop phone and pastes the
   `gift.truemoney.com` voucher link.
 - The link is encrypted at rest and its voucher code is unique. Staff must redeem it in the

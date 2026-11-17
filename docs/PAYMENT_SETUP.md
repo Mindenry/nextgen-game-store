@@ -248,12 +248,12 @@ Operational tips:
   auto-matched; the credit appears as unmatched and can be linked manually or refunded.
 - Duplicate imports are safe: rows are de-duplicated by bank reference (or a fingerprint of the row).
 
-## 3.3 TrueMoney Angpao (manual, phone 0812345678)
+## 3.3 TrueMoney Angpao (manual, phone configured in settings)
 
 The `truemoney_angpao` provider accepts a voucher link from `gift.truemoney.com`:
 
 1. Customer creates a deposit and selects **TrueMoney Angpao (Manual)**.
-2. Customer sends/receives the Angpao to the configured shop phone and pastes the voucher link.
+2. Customer sends/receives the Angpao to the shop phone configured in Payment Settings and pastes the voucher link.
 3. The voucher code is hashed (unique), the full link is encrypted at rest, and staff are notified.
 4. Staff redeem the voucher in the official TrueMoney app, then approve the payment.
 5. Approval credits the wallet exactly once.

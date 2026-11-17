@@ -37,7 +37,7 @@ export const DEFAULT_SETTINGS: Record<string, unknown> = {
   "slip.receiver_name": "",
   "slip.max_age_days": 30,
   "slip.auto_approve": true,
-  "truemoney.phone": "0812345678",
+  "truemoney.phone": "",
   "footer.about":
     "Digital goods delivered securely. Every order is tracked, every balance is backed by a ledger.",
   "legal.terms": "Terms and conditions placeholder.",

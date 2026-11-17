@@ -20,9 +20,18 @@ export function TruemoneyVoucherForm({
     <form action={action} className="space-y-3">
       <input type="hidden" name="reference" value={reference} />
       <Alert variant="info">
-        ส่งซองอั่งเปา TrueMoney มาที่เบอร์ <strong className="font-mono">{phone}</strong>{" "}
-        แล้ววางลิงก์ซองด้านล่าง เจ้าหน้าที่จะเปิดซองและอนุมัติยอดให้
-        ระบบจะไม่เติมเงินอัตโนมัติจากลิงก์
+        {phone ? (
+          <>
+            ส่งซองอั่งเปา TrueMoney มาที่เบอร์ <strong className="font-mono">{phone}</strong>{" "}
+            แล้ววางลิงก์ซองด้านล่าง เจ้าหน้าที่จะเปิดซองและอนุมัติยอดให้
+          </>
+        ) : (
+          <>
+            ร้านยังไม่ได้ตั้งเบอร์รับซองอั่งเปาในระบบ — สอบถามเจ้าหน้าที่ผ่านช่องทางติดต่อก่อนสร้างรายการ
+            หรือเลือกช่องทาง PromptPay แทน
+          </>
+        )}
+        {" "}ระบบจะไม่เติมเงินอัตโนมัติจากลิงก์
       </Alert>
       {state.error ? <Alert variant="danger">{state.error}</Alert> : null}
       {state.success ? <Alert variant="success">{state.success}</Alert> : null}
